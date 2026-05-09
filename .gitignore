@@ -1,0 +1,35 @@
+# Gradle
+.gradle/
+build/
+out/
+classes/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+
+# Fabric
+run/
+.fabric/
+remappedSrc/
+
+# macOS
+.DS_Store
+
+# Local env
+*.local
+.env
+
+# Claude Code personal settings (commit .claude/settings.json, ignore .local)
+.claude/settings.local.json
