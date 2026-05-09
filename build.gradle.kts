@@ -1,6 +1,7 @@
 plugins {
     id("net.fabricmc.fabric-loom")
     kotlin("jvm")
+    kotlin("plugin.serialization")
     `maven-publish`
 }
 
@@ -55,10 +56,12 @@ dependencies {
 }
 
 tasks.processResources {
-    inputs.property("version", project.version)
+    val templateProps = mapOf("version" to project.version)
+    inputs.properties(templateProps)
+    filteringCharset = "UTF-8"
 
     filesMatching("fabric.mod.json") {
-        expand("version" to project.version)
+        expand(templateProps)
     }
 }
 

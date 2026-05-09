@@ -10,6 +10,7 @@ pluginManagement {
     plugins {
         id("net.fabricmc.fabric-loom") version loomVersion
         kotlin("jvm") version kotlinVersion
+        kotlin("plugin.serialization") version kotlinVersion
     }
 }
 
