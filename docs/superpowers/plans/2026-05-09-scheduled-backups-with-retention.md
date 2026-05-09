@@ -616,7 +616,7 @@ class BackupNamingTest {
 Run: `./gradlew test --tests dev.skrasek.dbhvault.backup.BackupNamingTest`
 Expected: COMPILATION ERROR.
 
-- [ ] **Step 3: Implement `BackupNaming.kt`**
+- [x] **Step 3: Implement `BackupNaming.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup
@@ -648,7 +648,7 @@ object BackupNaming {
 }
 ```
 
-- [ ] **Step 4: Run test, verify pass**
+- [x] **Step 4: Run test, verify pass**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.backup.BackupNamingTest`
 Expected: 4 tests, 0 failures.
@@ -701,7 +701,7 @@ class BackupMetadataTest {
 Run: `./gradlew test --tests dev.skrasek.dbhvault.backup.BackupMetadataTest`
 Expected: COMPILATION ERROR.
 
-- [ ] **Step 7: Implement `BackupMetadata.kt`**
+- [x] **Step 7: Implement `BackupMetadata.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup
@@ -744,12 +744,12 @@ data class BackupMetadata(
 }
 ```
 
-- [ ] **Step 8: Run all backup tests**
+- [x] **Step 8: Run all backup tests**
 
 Run: `./gradlew test --tests "dev.skrasek.dbhvault.backup.*"`
 Expected: 8 tests, 0 failures.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/backup/BackupNaming.kt \
