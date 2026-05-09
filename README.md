@@ -13,8 +13,8 @@ A Fabric **server-only** mod for Minecraft 26.1.x, written in Kotlin.
 | Fabric Loader | 0.19.2 |
 | Fabric API | 0.145.1+26.1 |
 | [Fabric Language Kotlin](https://github.com/FabricMC/fabric-language-kotlin) | 1.13.11+kotlin.2.3.21 |
-| Loom | 1.16-SNAPSHOT |
-| Gradle | 9.4 |
+| Loom | 1.16.1 |
+| Gradle | 9.4.1 |
 | Kotlin | 2.3.21 |
 | Java | 25 |
 

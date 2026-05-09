@@ -4,23 +4,28 @@ plugins {
     `maven-publish`
 }
 
-val modVersion: String by project
-val mavenGroup: String by project
-val archivesBaseName: String by project
+val modVersion = property("mod_version") as String
+val mavenGroup = property("maven_group") as String
+val archivesBaseName = property("archives_base_name") as String
 
-val minecraftVersion: String by project
-val loaderVersion: String by project
-val fabricApiVersion: String by project
-val fabricKotlinVersion: String by project
+val minecraftVersion = property("minecraft_version") as String
+val loaderVersion = property("loader_version") as String
+val fabricApiVersion = property("fabric_api_version") as String
+val fabricKotlinVersion = property("fabric_kotlin_version") as String
+val fabricPermissionsVersion = property("fabric_permissions_version") as String
+val zstdJniVersion = property("zstd_jni_version") as String
+val tomlktVersion = property("tomlkt_version") as String
+val kotlinxCoroutinesVersion = property("kotlinx_coroutines_version") as String
+val junitVersion = property("junit_version") as String
+val mockkVersion = property("mockk_version") as String
 
 version = modVersion
 group = mavenGroup
 base.archivesName.set(archivesBaseName)
 
 repositories {
-    // Loom registers Mojang and Fabric repositories automatically.
-    // Add third-party mod repos here as needed.
     mavenCentral()
+    maven("https://maven.lucko.me/") { name = "Lucko" }
 }
 
 loom {
@@ -38,6 +43,15 @@ dependencies {
 
     // https://github.com/FabricMC/fabric-language-kotlin
     implementation("net.fabricmc:fabric-language-kotlin:$fabricKotlinVersion")
+
+    implementation("me.lucko:fabric-permissions-api:$fabricPermissionsVersion")
+    implementation("com.github.luben:zstd-jni:$zstdJniVersion")
+    implementation("net.peanuuutz.tomlkt:tomlkt:$tomlktVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion")
+
+    testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
+    testImplementation("io.mockk:mockk:$mockkVersion")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlinxCoroutinesVersion")
 }
 
 tasks.processResources {
@@ -62,6 +76,10 @@ java {
     targetCompatibility = JavaVersion.VERSION_25
 }
 
+tasks.test {
+    useJUnitPlatform()
+}
+
 tasks.jar {
     val projectName = project.name
     inputs.property("projectName", projectName)
@@ -77,6 +95,5 @@ publishing {
         }
     }
     repositories {
-        // Configure publish targets here.
     }
 }
