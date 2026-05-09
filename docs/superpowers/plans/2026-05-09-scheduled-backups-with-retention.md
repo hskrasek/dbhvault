@@ -102,7 +102,7 @@ src/test/kotlin/dev/skrasek/dbhvault/
 - Modify: `build.gradle.kts`
 - Modify: `settings.gradle.kts`
 
-- [ ] **Step 1: Add new version pins to `gradle.properties`**
+- [x] **Step 1: Add new version pins to `gradle.properties`**
 
 Append to `gradle.properties`:
 
@@ -122,11 +122,11 @@ junit_version=5.10.2
 mockk_version=1.13.10
 ```
 
-- [ ] **Step 2: Add Lucko's Maven to `settings.gradle.kts`**
+- [x] **Step 2: Add Lucko's Maven to `settings.gradle.kts`**
 
 Modify the `pluginManagement.repositories` block — but actually Lucko's Maven is for `dependencies`, not plugins. Instead, modify `build.gradle.kts`'s `repositories { }` block (Step 3 below).
 
-- [ ] **Step 3: Replace `build.gradle.kts` with the new version**
+- [x] **Step 3: Replace `build.gradle.kts` with the new version**
 
 Replace the entire `build.gradle.kts` with:
 
@@ -232,17 +232,17 @@ publishing {
 }
 ```
 
-- [ ] **Step 4: Verify dependency resolution**
+- [x] **Step 4: Verify dependency resolution**
 
 Run: `./gradlew dependencies --configuration runtimeClasspath`
 Expected: Resolves without errors. `fabric-permissions-api`, `zstd-jni`, `tomlkt`, `kotlinx-coroutines-core` all appear in the tree.
 
-- [ ] **Step 5: Verify project still compiles**
+- [x] **Step 5: Verify project still compiles**
 
 Run: `./gradlew build`
 Expected: BUILD SUCCESSFUL. Existing `DBHVault.kt` still compiles.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add gradle.properties build.gradle.kts
@@ -257,7 +257,7 @@ git commit -m "add deps: permissions-api, zstd-jni, tomlkt, junit, mockk"
 - Create: `src/main/kotlin/dev/skrasek/dbhvault/config/Config.kt`
 - Create: `src/main/kotlin/dev/skrasek/dbhvault/config/ConfigDefaults.kt`
 
-- [ ] **Step 1: Create `Config.kt`**
+- [x] **Step 1: Create `Config.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.config
@@ -318,7 +318,7 @@ enum class BroadcastScope {
 }
 ```
 
-- [ ] **Step 2: Create `ConfigDefaults.kt`**
+- [x] **Step 2: Create `ConfigDefaults.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.config
@@ -358,12 +358,12 @@ configEvents = "OPS_ONLY"
 """
 ```
 
-- [ ] **Step 3: Compile**
+- [x] **Step 3: Compile**
 
 Run: `./gradlew compileKotlin`
 Expected: BUILD SUCCESSFUL.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/config/
@@ -379,7 +379,7 @@ git commit -m "add config data model"
 - Create: `src/test/kotlin/dev/skrasek/dbhvault/config/ConfigManagerTest.kt`
 - Create: `src/test/kotlin/dev/skrasek/dbhvault/TestFixtures.kt`
 
-- [ ] **Step 1: Create `TestFixtures.kt`**
+- [x] **Step 1: Create `TestFixtures.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault
@@ -396,7 +396,7 @@ internal fun tempDir(prefix: String = "dbhvault-test-"): Path {
 }
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `src/test/kotlin/dev/skrasek/dbhvault/config/ConfigManagerTest.kt`:
 
@@ -484,12 +484,12 @@ class ConfigManagerTest {
 }
 ```
 
-- [ ] **Step 3: Run test, verify it fails**
+- [x] **Step 3: Run test, verify it fails**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.config.ConfigManagerTest`
 Expected: COMPILATION ERROR — `ConfigManager` doesn't exist yet.
 
-- [ ] **Step 4: Implement `ConfigManager.kt`**
+- [x] **Step 4: Implement `ConfigManager.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.config
@@ -536,12 +536,12 @@ class ConfigManager(private val configPath: Path) {
 }
 ```
 
-- [ ] **Step 5: Run test, verify it passes**
+- [x] **Step 5: Run test, verify it passes**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.config.ConfigManagerTest`
 Expected: 3 tests, 0 failures.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/config/ConfigManager.kt \
@@ -562,7 +562,7 @@ git commit -m "add ConfigManager with TOML load/save and atomic writes"
 
 Backup files are named like `world-2026-05-09T03-00-00Z.tar.zst` (scheduled) or `world-2026-05-09T03-00-00Z--pre-update.tar.zst` (named/pinned). The `--<name>` suffix marks a pinned backup.
 
-- [ ] **Step 1: Write `BackupNamingTest.kt`**
+- [x] **Step 1: Write `BackupNamingTest.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup
@@ -611,7 +611,7 @@ class BackupNamingTest {
 }
 ```
 
-- [ ] **Step 2: Run test, verify failure**
+- [x] **Step 2: Run test, verify failure**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.backup.BackupNamingTest`
 Expected: COMPILATION ERROR.
@@ -653,7 +653,7 @@ object BackupNaming {
 Run: `./gradlew test --tests dev.skrasek.dbhvault.backup.BackupNamingTest`
 Expected: 4 tests, 0 failures.
 
-- [ ] **Step 5: Write `BackupMetadataTest.kt`**
+- [x] **Step 5: Write `BackupMetadataTest.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup
@@ -696,7 +696,7 @@ class BackupMetadataTest {
 }
 ```
 
-- [ ] **Step 6: Run test, verify failure**
+- [x] **Step 6: Run test, verify failure**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.backup.BackupMetadataTest`
 Expected: COMPILATION ERROR.
