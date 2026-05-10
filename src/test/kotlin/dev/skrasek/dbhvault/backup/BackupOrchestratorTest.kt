@@ -272,13 +272,11 @@ class BackupOrchestratorTest {
         )
         val captured = AtomicReference<List<BackupEntry>?>(null)
 
-        val mockRegistry = mockk<BackupRegistry> { every { list() } returns emptyList() }
         val mockRetention = mockk<RetentionPolicy> {
             every { classify(any(), any()) } returns RetentionDecision(keep = emptyList(), prune = toPrune)
         }
 
         val orchestrator = newOrchestrator(
-            registry = mockRegistry,
             retention = mockRetention,
             prune = { captured.set(it) },
         )
@@ -316,7 +314,7 @@ class BackupOrchestratorTest {
         worldDir: Path = makeWorldDir(),
         backupDir: Path = tempDir("orch-backups-"),
         archiver: BackupArchiver = mockArchiver(),
-        registry: BackupRegistry = mockk(relaxed = true) { every { list() } returns emptyList() },
+        registry: BackupRegistry = BackupRegistry(tempDir("orch-registry-")),
         retention: RetentionPolicy = mockk(relaxed = true) {
             every { classify(any(), any()) } returns RetentionDecision(emptyList(), emptyList())
         },
