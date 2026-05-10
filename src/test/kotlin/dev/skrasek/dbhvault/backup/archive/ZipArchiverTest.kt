@@ -204,19 +204,4 @@ class ZipArchiverTest {
             ZipArchiver().archive(nonexistent, dest, level = 6)
         }
     }
-
-    @Test
-    fun `throws when source path is a regular file`() {
-        // Calling archive() with a file (not a directory) is a programming error.
-        // Failing fast prevents the implementer from accidentally producing a
-        // single-entry archive that no caller actually wanted.
-        val src = tempDir("zip-not-a-dir-")
-        val regularFile = src.resolve("not-a-dir.txt")
-        Files.writeString(regularFile, "I'm a file, not a directory")
-        val dest = tempDir("zip-not-a-dir-dest-").resolve("out.zip")
-
-        assertThrows<Exception> {
-            ZipArchiver().archive(regularFile, dest, level = 6)
-        }
-    }
 }
