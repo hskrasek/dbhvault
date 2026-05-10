@@ -1,7 +1,10 @@
 package dev.skrasek.dbhvault.backup.storage
 
 import dev.skrasek.dbhvault.backup.BackupMetadata
+import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.fileSize
+import kotlin.io.path.name
 
 /**
  * One backup file on disk: its filesystem path, parsed metadata, and size.
@@ -38,9 +41,22 @@ data class BackupEntry(
  * map to [BackupEntry] via parse, drop nulls, sort by descending timestamp.
  */
 class BackupRegistry(private val backupDir: Path) {
-    fun list(): List<BackupEntry> =
-        TODO("Implement: scan top-level of backupDir, parse names, sort newest-first")
+    fun list(): List<BackupEntry> {
+        if (!Files.isDirectory(backupDir)) return emptyList()
 
-    fun mostRecent(): BackupEntry? =
-        TODO("Implement: return the newest BackupEntry or null")
+        return Files.list(backupDir).use { stream ->
+            stream
+                .filter { Files.isRegularFile(it) }
+                .map { path ->
+                    val meta = BackupMetadata.parse(path.name) ?: return@map null
+                    BackupEntry(path, meta, path.fileSize())
+                }
+                .filter { it != null }
+                .map { it!! }
+                .sorted(compareByDescending { it.metadata.timestamp })
+                .toList()
+        }
+    }
+
+    fun mostRecent(): BackupEntry? = list().firstOrNull()
 }
