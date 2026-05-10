@@ -32,5 +32,8 @@ remappedSrc/
 *.local
 .env
 
+# Sentry DSN injection — copy local.properties.example to local.properties
+local.properties
+
 # Claude Code personal settings (commit .claude/settings.json, ignore .local)
 .claude/settings.local.json

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("net.fabricmc.fabric-loom")
     kotlin("jvm")
@@ -19,6 +21,7 @@ val tomlktVersion = property("tomlkt_version") as String
 val kotlinxCoroutinesVersion = property("kotlinx_coroutines_version") as String
 val junitVersion = property("junit_version") as String
 val mockkVersion = property("mockk_version") as String
+val sentryVersion = property("sentry_version") as String
 
 version = modVersion
 group = mavenGroup
@@ -51,6 +54,7 @@ dependencies {
     implementation("com.github.luben:zstd-jni:$zstdJniVersion")
     implementation("net.peanuuutz.tomlkt:tomlkt:$tomlktVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion")
+    implementation("io.sentry:sentry-log4j2:$sentryVersion")
 
     testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -58,12 +62,27 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlinxCoroutinesVersion")
 }
 
+val sentryDsn: String = rootProject.file("local.properties")
+    .takeIf { it.exists() }
+    ?.let { file ->
+        Properties()
+            .apply { file.inputStream().use { load(it) } }
+            .getProperty("sentry.dsn", "")
+    }
+    ?: ""
+
 tasks.processResources {
-    val templateProps = mapOf("version" to project.version)
+    val templateProps = mapOf(
+        "version" to project.version,
+        "sentry_dsn" to sentryDsn,
+    )
     inputs.properties(templateProps)
     filteringCharset = "UTF-8"
 
     filesMatching("fabric.mod.json") {
+        expand(templateProps)
+    }
+    filesMatching("dbhvault.build.properties") {
         expand(templateProps)
     }
 }

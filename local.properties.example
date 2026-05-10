@@ -1,0 +1,6 @@
+# Copy this file to `local.properties` (gitignored) and set your DSN to enable
+# Sentry reporting in release builds. Leave the value blank in dev to keep
+# `./gradlew runServer` from emitting events to your Sentry project.
+#
+# Get the DSN from your Sentry project's Settings → Client Keys (DSN) page.
+sentry.dsn=
