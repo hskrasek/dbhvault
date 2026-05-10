@@ -6,6 +6,7 @@ import dev.skrasek.dbhvault.config.IdleSkipConfig
 import dev.skrasek.dbhvault.config.ScheduleConfig
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -38,6 +39,7 @@ class BackupSchedulerTest {
 
         scheduler.start(this)
         advanceTimeBy(Duration.ofHours(1).toMillis())
+        runCurrent()
         scheduler.stop()
 
         assertEquals(listOf<BackupRequest>(BackupRequest.Scheduled), captured)
@@ -57,6 +59,7 @@ class BackupSchedulerTest {
 
         scheduler.start(this)
         advanceTimeBy(Duration.ofHours(3).toMillis())
+        runCurrent()
         scheduler.stop()
 
         assertEquals(3, count.get(), "expected one backup per hourly interval over 3 hours")
@@ -82,6 +85,7 @@ class BackupSchedulerTest {
 
         scheduler.start(this)
         advanceTimeBy(Duration.ofHours(3).toMillis())
+        runCurrent()
         scheduler.stop()
 
         assertEquals(0, count.get(), "disabled schedule must not invoke runBackup")
@@ -101,6 +105,7 @@ class BackupSchedulerTest {
 
         scheduler.start(this)
         advanceTimeBy(Duration.ofHours(3).toMillis())
+        runCurrent()
         scheduler.stop()
 
         assertEquals(0, count.get(), "shouldSkipIdle=true must short-circuit runBackup")
@@ -109,7 +114,10 @@ class BackupSchedulerTest {
     // ---- Config update ----
 
     @Test
-    fun `updateConfig changes interval for subsequent ticks`() = runTest {
+    fun `updateConfig takes effect after the currently-pending delay completes`() = runTest {
+        // The currently-running iteration's delay was already scheduled with the
+        // old interval — it cannot be shortened. The new interval kicks in on the
+        // iteration AFTER the currently-pending one completes.
         val count = AtomicInteger()
         val scheduler = BackupScheduler(
             scheduleConfig = enabledHourlyConfig(intervalHours = 6),
@@ -121,14 +129,25 @@ class BackupSchedulerTest {
         )
 
         scheduler.start(this)
-        // First tick at 6h
-        advanceTimeBy(Duration.ofHours(6).toMillis())
-        assertEquals(1, count.get(), "first tick should fire at the 6h interval")
 
-        // Now switch to 1h interval; next tick should fire 1h later, not 6h.
+        // First tick at 6h. After this tick, iteration 2 starts delaying for 6h
+        // (using the original config that was current when iteration 2 read it).
+        advanceTimeBy(Duration.ofHours(6).toMillis())
+        runCurrent()
+        assertEquals(1, count.get(), "first tick at 6h")
+
+        // Operator changes interval to 1h. Iteration 2 is mid-delay with the old 6h.
         scheduler.updateConfig(enabledHourlyConfig(intervalHours = 1))
+
+        // Iteration 2 still fires at the original +6h boundary (=12h total).
+        advanceTimeBy(Duration.ofHours(6).toMillis())
+        runCurrent()
+        assertEquals(2, count.get(), "iteration 2 honors the already-scheduled 6h delay")
+
+        // Iteration 3 reads the NEW config and delays 1h.
         advanceTimeBy(Duration.ofHours(1).toMillis())
-        assertEquals(2, count.get(), "after updateConfig to 1h, next tick should fire at +1h")
+        runCurrent()
+        assertEquals(3, count.get(), "iteration 3 picks up the new 1h interval")
 
         scheduler.stop()
     }
@@ -149,9 +168,11 @@ class BackupSchedulerTest {
 
         scheduler.start(this)
         advanceTimeBy(Duration.ofHours(2).toMillis())
+        runCurrent()
         val countAtStop = count.get()
         scheduler.stop()
         advanceTimeBy(Duration.ofHours(10).toMillis())
+        runCurrent()
 
         assertEquals(countAtStop, count.get(), "no ticks should fire after stop()")
     }
@@ -171,6 +192,7 @@ class BackupSchedulerTest {
         scheduler.start(this)
         scheduler.start(this) // second start; first must be cancelled
         advanceTimeBy(Duration.ofHours(3).toMillis())
+        runCurrent()
         scheduler.stop()
 
         assertEquals(
@@ -197,6 +219,7 @@ class BackupSchedulerTest {
 
         scheduler.start(this)
         advanceTimeBy(Duration.ofHours(3).toMillis())
+        runCurrent()
         scheduler.stop()
 
         assertTrue(
