@@ -3,12 +3,15 @@ package dev.skrasek.dbhvault.observability
 import dev.skrasek.dbhvault.backup.BackupResult
 import dev.skrasek.dbhvault.config.Config
 import io.sentry.Sentry
+import io.sentry.SentryEvent
 import io.sentry.SentryOptions
 import io.sentry.log4j2.SentryAppender
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.SharedConstants
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.core.LoggerContext
+import org.apache.logging.log4j.core.config.Configuration
+import org.apache.logging.log4j.core.config.LoggerConfig
 import org.slf4j.LoggerFactory
 import java.util.Properties
 
@@ -63,8 +66,7 @@ object Telemetry {
                 options.isSendDefaultPii = false
                 options.release = "dbhvault@$modVersion"
                 options.beforeSend = SentryOptions.BeforeSendCallback { event, _ ->
-                    event.user = null
-                    event
+                    filterSentryEvent(event)
                 }
             }
             attachLog4j2Appender()
@@ -98,6 +100,7 @@ object Telemetry {
     // ---- Internals ----
 
     private const val BUILD_PROPERTIES_RESOURCE = "dbhvault.build.properties"
+    internal const val MOD_LOGGER_NAME = "dev.skrasek.dbhvault"
 
     private fun attachLog4j2Appender() {
         val ctx = LoggerContext.getContext(false) as LoggerContext
@@ -114,9 +117,45 @@ object Telemetry {
         ) ?: error("SentryAppender.createAppender returned null")
         appender.start()
         cfg.addAppender(appender)
-        val loggerCfg = cfg.getLoggerConfig("dev.skrasek.dbhvault")
+        val loggerCfg = resolveOrCreateModLoggerConfig(cfg)
         loggerCfg.addAppender(appender, Level.WARN, null)
         ctx.updateLoggers()
+    }
+
+    /**
+     * Returns the [LoggerConfig] for [MOD_LOGGER_NAME], creating a dedicated
+     * one if no existing config has that exact name.
+     *
+     * `Configuration.getLoggerConfig(name)` returns the nearest *enclosing*
+     * LoggerConfig — so on a vanilla server with no explicit mod-logger config,
+     * it returns the ROOT config. Attaching the Sentry appender to that would
+     * route every WARN+ log message in the JVM (including Minecraft's own
+     * networking errors) into Sentry. We avoid that by creating an exact-name
+     * LoggerConfig when the lookup falls back to an ancestor.
+     */
+    internal fun resolveOrCreateModLoggerConfig(cfg: Configuration): LoggerConfig {
+        val existing = cfg.getLoggerConfig(MOD_LOGGER_NAME)
+        if (existing.name == MOD_LOGGER_NAME) return existing
+        val created = LoggerConfig(MOD_LOGGER_NAME, Level.WARN, true)
+        cfg.addLogger(MOD_LOGGER_NAME, created)
+        return created
+    }
+
+    /**
+     * `beforeSend` callback body. Drops scraped log events whose originating
+     * logger is outside the mod's namespace (defense in depth in case the
+     * appender is ever bound too broadly), and strips the user object from
+     * the events we do keep.
+     *
+     * Returns `null` to instruct Sentry to drop the event.
+     */
+    internal fun filterSentryEvent(event: SentryEvent): SentryEvent? {
+        val eventLogger = event.logger
+        if (eventLogger != null && !eventLogger.startsWith(MOD_LOGGER_NAME)) {
+            return null
+        }
+        event.user = null
+        return event
     }
 }
 

@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] — 2026-05-10
+
+### Fixed
+
+- Sentry's Log4j2 appender was attaching to the **root** logger instead of
+  `dev.skrasek.dbhvault`. `Configuration.getLoggerConfig(name)` returns the
+  *nearest enclosing* `LoggerConfig`, so on a vanilla server with no explicit
+  mod logger registered it fell back to root — routing every WARN+ log line
+  in the JVM through `SentryAppender`. The visible symptom was Sentry issues
+  from `net.minecraft.network.PacketEncoder` (e.g. `EncoderException: Sending
+  unknown packet 'clientbound/minecraft:disconnect'`) and other vanilla
+  networking errors that have nothing to do with the mod.
+- `Telemetry.attachLog4j2Appender` now creates a dedicated `LoggerConfig` at
+  exactly `dev.skrasek.dbhvault` when one doesn't already exist, with
+  `additive=true` so mod log lines still flow to the server console.
+- `beforeSend` now drops events whose `logger` is set to a namespace outside
+  `dev.skrasek.dbhvault.*` (defense in depth against future log-routing
+  regressions). Explicit `Sentry.captureException` calls from mod code are
+  unaffected — they don't set `event.logger`.
+
 ## [1.1.1] — 2026-05-10
 
 ### Fixed
@@ -152,5 +172,7 @@ gate at op level 2. Permission checks use 26.1's typed
 4. As an op: `/vault info` to confirm registration, `/vault backup smoke`
    for a manual test backup.
 
+[1.1.2]: https://github.com/hskrasek/dbhvault/releases/tag/v1.1.2
+[1.1.1]: https://github.com/hskrasek/dbhvault/releases/tag/v1.1.1
 [1.1.0]: https://github.com/hskrasek/dbhvault/releases/tag/v1.1.0
 [1.0.0]: https://github.com/hskrasek/dbhvault/releases/tag/v1.0.0
