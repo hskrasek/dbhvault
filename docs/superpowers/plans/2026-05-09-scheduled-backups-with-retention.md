@@ -2075,7 +2075,7 @@ git commit -m "add Notifier with scope-based broadcast"
 
 We register `/vault` as a Brigadier root and dispatch to subcommand builders. Each subcommand is its own object exposing a `register(LiteralArgumentBuilder<CommandSourceStack>)` extension.
 
-- [ ] **Step 1: Implement `VaultCommand.kt`**
+- [x] **Step 1: Implement `VaultCommand.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.command
@@ -2110,7 +2110,7 @@ object VaultCommand {
 
 `DBHVaultRuntime` is a holder we'll define in Task 21 — it bundles the orchestrator, scheduler, registry, config manager, and notifier so subcommands can pull what they need without globals.
 
-- [ ] **Step 2: Implement `InfoSubcommand.kt`**
+- [x] **Step 2: Implement `InfoSubcommand.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.command
@@ -2149,12 +2149,12 @@ object InfoSubcommand {
 }
 ```
 
-- [ ] **Step 3: Compile**
+- [x] **Step 3: Compile**
 
 Run: `./gradlew compileKotlin`
 Expected: COMPILATION ERROR — the other subcommand files don't exist yet, and `DBHVaultRuntime` doesn't exist. We'll add stubs in this commit and replace in later tasks.
 
-- [ ] **Step 4: Add stubs for the other subcommands so compilation succeeds**
+- [x] **Step 4: Add stubs for the other subcommands so compilation succeeds**
 
 Create `src/main/kotlin/dev/skrasek/dbhvault/command/Stubs.kt`:
 
@@ -2187,7 +2187,7 @@ internal object ConfigSubcommand {
 
 Stubs will be replaced in Tasks 16–20.
 
-- [ ] **Step 5: Add `DBHVaultRuntime` placeholder**
+- [x] **Step 5: Add `DBHVaultRuntime` placeholder**
 
 Create `src/main/kotlin/dev/skrasek/dbhvault/DBHVaultRuntime.kt`:
 
@@ -2215,12 +2215,12 @@ class DBHVaultRuntime(
 }
 ```
 
-- [ ] **Step 6: Compile**
+- [x] **Step 6: Compile**
 
 Run: `./gradlew compileKotlin`
 Expected: BUILD SUCCESSFUL.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/command/VaultCommand.kt \
@@ -2239,11 +2239,11 @@ git commit -m "add /vault command root, /vault info subcommand, runtime holder"
 - Create: `src/main/kotlin/dev/skrasek/dbhvault/command/BackupSubcommand.kt`
 - Create: `src/main/kotlin/dev/skrasek/dbhvault/command/ListSubcommand.kt`
 
-- [ ] **Step 1: Delete the two stubs from `Stubs.kt`**
+- [x] **Step 1: Delete the two stubs from `Stubs.kt`**
 
 Edit `Stubs.kt` to remove `BackupSubcommand` and `ListSubcommand` blocks. Keep the others.
 
-- [ ] **Step 2: Implement `BackupSubcommand.kt`**
+- [x] **Step 2: Implement `BackupSubcommand.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.command
@@ -2295,7 +2295,7 @@ internal object BackupSubcommand {
 
 This requires `DBHVaultRuntime` to expose a `scope: CoroutineScope`. Add it.
 
-- [ ] **Step 3: Update `DBHVaultRuntime.kt` to expose the coroutine scope**
+- [x] **Step 3: Update `DBHVaultRuntime.kt` to expose the coroutine scope**
 
 ```kotlin
 package dev.skrasek.dbhvault
@@ -2323,7 +2323,7 @@ class DBHVaultRuntime(
 }
 ```
 
-- [ ] **Step 4: Implement `ListSubcommand.kt`**
+- [x] **Step 4: Implement `ListSubcommand.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.command
@@ -2366,12 +2366,12 @@ internal object ListSubcommand {
 }
 ```
 
-- [ ] **Step 5: Compile**
+- [x] **Step 5: Compile**
 
 Run: `./gradlew compileKotlin`
 Expected: BUILD SUCCESSFUL.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/command/BackupSubcommand.kt \
@@ -2389,9 +2389,9 @@ git commit -m "add /vault backup and /vault list subcommands"
 - Create: `src/main/kotlin/dev/skrasek/dbhvault/command/ScheduleSubcommand.kt`
 - Modify: `src/main/kotlin/dev/skrasek/dbhvault/command/Stubs.kt` (remove `ScheduleSubcommand` stub)
 
-- [ ] **Step 1: Remove the `ScheduleSubcommand` stub from `Stubs.kt`**
+- [x] **Step 1: Remove the `ScheduleSubcommand` stub from `Stubs.kt`**
 
-- [ ] **Step 2: Implement `ScheduleSubcommand.kt`**
+- [x] **Step 2: Implement `ScheduleSubcommand.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.command
@@ -2439,7 +2439,7 @@ internal object ScheduleSubcommand {
 
 This depends on `DBHVaultRuntime.applyConfig(next, message, source)` which doesn't exist yet. Add it.
 
-- [ ] **Step 3: Add `applyConfig` to `DBHVaultRuntime.kt`**
+- [x] **Step 3: Add `applyConfig` to `DBHVaultRuntime.kt`**
 
 Replace `DBHVaultRuntime.kt` with:
 
@@ -2482,12 +2482,12 @@ class DBHVaultRuntime(
 
 Note the constructor signature changed — `configRef: () -> Config` is replaced with `initialConfig: Config`. Update `Task 21` (wiring) accordingly.
 
-- [ ] **Step 4: Compile**
+- [x] **Step 4: Compile**
 
 Run: `./gradlew compileKotlin`
 Expected: BUILD SUCCESSFUL.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/command/ScheduleSubcommand.kt \
@@ -2505,9 +2505,9 @@ git commit -m "add /vault schedule subcommand and runtime applyConfig"
 - Create: `src/main/kotlin/dev/skrasek/dbhvault/command/IdleSubcommand.kt`
 - Modify: `src/main/kotlin/dev/skrasek/dbhvault/command/Stubs.kt` (remove `RetentionSubcommand` and `IdleSubcommand` stubs)
 
-- [ ] **Step 1: Remove both stubs from `Stubs.kt`**
+- [x] **Step 1: Remove both stubs from `Stubs.kt`**
 
-- [ ] **Step 2: Implement `RetentionSubcommand.kt`**
+- [x] **Step 2: Implement `RetentionSubcommand.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.command
@@ -2561,7 +2561,7 @@ internal object RetentionSubcommand {
 }
 ```
 
-- [ ] **Step 3: Implement `IdleSubcommand.kt`**
+- [x] **Step 3: Implement `IdleSubcommand.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.command
@@ -2611,12 +2611,12 @@ internal object IdleSubcommand {
 }
 ```
 
-- [ ] **Step 4: Compile**
+- [x] **Step 4: Compile**
 
 Run: `./gradlew compileKotlin`
 Expected: BUILD SUCCESSFUL.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/command/RetentionSubcommand.kt \
@@ -2633,7 +2633,7 @@ git commit -m "add /vault retention and /vault idle subcommands"
 - Create: `src/main/kotlin/dev/skrasek/dbhvault/command/ConfigSubcommand.kt`
 - Delete: `src/main/kotlin/dev/skrasek/dbhvault/command/Stubs.kt` (now empty)
 
-- [ ] **Step 1: Implement `ConfigSubcommand.kt`**
+- [x] **Step 1: Implement `ConfigSubcommand.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.command
@@ -2686,18 +2686,18 @@ internal object ConfigSubcommand {
 }
 ```
 
-- [ ] **Step 2: Delete `Stubs.kt`**
+- [x] **Step 2: Delete `Stubs.kt`**
 
 ```bash
 trash src/main/kotlin/dev/skrasek/dbhvault/command/Stubs.kt
 ```
 
-- [ ] **Step 3: Compile**
+- [x] **Step 3: Compile**
 
 Run: `./gradlew compileKotlin`
 Expected: BUILD SUCCESSFUL.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/command/ConfigSubcommand.kt \
@@ -2715,7 +2715,7 @@ git commit -m "add /vault config subcommand"
 - Modify: `src/main/kotlin/dev/skrasek/dbhvault/DBHVault.kt`
 - Modify: `src/main/resources/fabric.mod.json` (declare the additional `depends`)
 
-- [ ] **Step 1: Update `fabric.mod.json` to declare new runtime deps**
+- [x] **Step 1: Update `fabric.mod.json` to declare new runtime deps**
 
 Replace the existing `fabric.mod.json` with:
 
@@ -2756,7 +2756,7 @@ Replace the existing `fabric.mod.json` with:
 }
 ```
 
-- [ ] **Step 2: Replace `DBHVault.kt`**
+- [x] **Step 2: Replace `DBHVault.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault
@@ -2899,12 +2899,12 @@ object DBHVault : DedicatedServerModInitializer {
 }
 ```
 
-- [ ] **Step 3: Compile**
+- [x] **Step 3: Compile**
 
 Run: `./gradlew compileKotlin`
 Expected: BUILD SUCCESSFUL. If `MinecraftServer.submit`, `MinecraftServer.getWorldPath`, `LevelResource.ROOT_DIRECTORY`, or `ServerPlayConnectionEvents` differ in 26.1, adjust to match the deobfuscated names.
 
-- [ ] **Step 4: Run all tests**
+- [x] **Step 4: Run all tests**
 
 Run: `./gradlew test`
 Expected: All tests pass.
@@ -2931,7 +2931,7 @@ Expected:
 
 If zstd-jni native init fails, the file extension will be `.zip` instead.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/DBHVault.kt \
