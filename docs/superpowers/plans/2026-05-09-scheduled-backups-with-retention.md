@@ -1406,7 +1406,7 @@ git commit -m "add WorldFlush for main-thread save coordination"
 - Create: `src/main/kotlin/dev/skrasek/dbhvault/backup/BackupOrchestrator.kt`
 - Create: `src/test/kotlin/dev/skrasek/dbhvault/backup/BackupOrchestratorTest.kt`
 
-- [ ] **Step 1: Implement `BackupRequest.kt`**
+- [x] **Step 1: Implement `BackupRequest.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup
@@ -1417,7 +1417,7 @@ sealed class BackupRequest {
 }
 ```
 
-- [ ] **Step 2: Implement `BackupResult.kt`**
+- [x] **Step 2: Implement `BackupResult.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup
@@ -1447,7 +1447,7 @@ sealed class BackupResult {
 }
 ```
 
-- [ ] **Step 3: Write `BackupOrchestratorTest.kt`**
+- [x] **Step 3: Write `BackupOrchestratorTest.kt`**
 
 This test mocks the heavy dependencies (`MinecraftServer`, archiver) and verifies the orchestrator's contract: serializes via the lock, applies retention after success, classifies skip reasons correctly.
 
@@ -1534,12 +1534,12 @@ class BackupOrchestratorTest {
 }
 ```
 
-- [ ] **Step 4: Verify test failure**
+- [x] **Step 4: Verify test failure**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.backup.BackupOrchestratorTest`
 Expected: COMPILATION ERROR.
 
-- [ ] **Step 5: Implement `BackupOrchestrator.kt`**
+- [x] **Step 5: Implement `BackupOrchestrator.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup
@@ -1622,12 +1622,12 @@ class BackupOrchestrator(
 }
 ```
 
-- [ ] **Step 6: Verify pass**
+- [x] **Step 6: Verify pass**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.backup.BackupOrchestratorTest`
 Expected: 2 tests, 0 failures.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/backup/BackupRequest.kt \
