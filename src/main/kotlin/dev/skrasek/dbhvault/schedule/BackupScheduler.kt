@@ -4,6 +4,13 @@ import dev.skrasek.dbhvault.backup.BackupRequest
 import dev.skrasek.dbhvault.backup.BackupResult
 import dev.skrasek.dbhvault.config.ScheduleConfig
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import org.slf4j.LoggerFactory
+import java.time.Duration
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Coroutine-based interval scheduler. On [start], launches a coroutine that
@@ -39,12 +46,44 @@ class BackupScheduler(
     private val shouldSkipIdle: () -> Boolean,
     private val runBackup: suspend (BackupRequest) -> BackupResult,
 ) {
-    fun start(scope: CoroutineScope): Unit =
-        TODO("Implement: launch loop { delay(intervalHours.hours); tick }; cancel any prior job")
+    private val logger = LoggerFactory.getLogger(BackupScheduler::class.java)
 
-    fun updateConfig(cfg: ScheduleConfig): Unit =
-        TODO("Implement: replace scheduleConfig (atomic via @Volatile)")
+    private val jobRef = AtomicReference<Job?>(null)
 
-    fun stop(): Unit =
-        TODO("Implement: cancel the current job")
+    fun start(scope: CoroutineScope): Unit {
+        val newJob = scope.launch {
+            while (isActive) {
+                val cfg = scheduleConfig
+                val intervalMs = Duration.ofHours(cfg.intervalHours.toLong()).toMillis()
+                delay(intervalMs)
+
+                if (!cfg.enabled) {
+                    logger.debug("Schedule disabled; tick ignored")
+                    continue
+                }
+
+                if (shouldSkipIdle()) {
+                    logger.info("Skipping scheduled backup: world idle and clean since last backup")
+                    continue
+                }
+
+                try {
+                    runBackup(BackupRequest.Scheduled)
+                } catch (t: Throwable) {
+                    logger.error("Scheduled backup runner threw", t)
+                }
+            }
+        }
+
+        val previous = jobRef.getAndSet(newJob)
+        previous?.cancel()
+    }
+
+    fun updateConfig(cfg: ScheduleConfig): Unit {
+        scheduleConfig = cfg
+    }
+
+    fun stop(): Unit {
+        jobRef.getAndSet(null)?.cancel()
+    }
 }
