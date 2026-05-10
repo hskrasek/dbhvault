@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-05-10
+
+Adds Sentry SaaS observability so server-side errors and backup failures
+surface to your Sentry project with mod, Minecraft, Fabric Loader, and
+live backup-config context attached.
+
+### Added
+
+#### Telemetry
+
+- New `Telemetry` facade in `dev.skrasek.dbhvault.observability` that
+  delegates to a `TelemetrySink` interface. Default sink is a no-op, so
+  the mod is fully functional with no Sentry configured. A Sentry-backed
+  sink takes over iff a non-blank DSN is baked into
+  `dbhvault.build.properties` at build time.
+- Filtered Log4j2 `SentryAppender` attached to the `dev.skrasek.dbhvault`
+  logger subtree — auto-captures in-mod ERROR-level logs as Sentry issues
+  and INFO/WARN-level logs as breadcrumbs. Minecraft, Fabric, and other-mod
+  loggers are not forwarded.
+- Targeted captures at structured failure sites that don't flow through a
+  logger: `BackupResult.Failed` in the entrypoint's `describe()`, and the
+  IO scope's `CoroutineExceptionHandler`.
+- Event context: `dbhvault@<mod_version>` release, `minecraft.version` and
+  `fabric.loader.version` tags, and a `backup` context block reflecting the
+  live archive format, retention, and schedule. Refreshed on `/vault config`
+  edits so subsequent issues reflect the active config.
+- PII posture: `isSendDefaultPii = false` and a `BeforeSendCallback` that
+  strips `event.user`. Player names and UUIDs are never attached to events.
+
+#### Build
+
+- New `io.sentry.jvm.gradle` 6.6.0 plugin uploads a JVM source bundle on
+  release builds, so Sentry stack traces show actual Kotlin source lines.
+  Source upload only runs when `SENTRY_AUTH_TOKEN` is set in the environment.
+- DSN is templated at build time from an untracked `local.properties` file
+  (added to `.gitignore`); a committed `local.properties.example` documents
+  the format. Dev `runServer` builds without the file produce a blank DSN
+  and a no-op telemetry sink.
+
+### Configuration
+
+No `dbhvault.toml` schema changes. To enable Sentry on a release build:
+
+1. Copy `local.properties.example` to `local.properties`.
+2. Set `sentry.dsn=` to your Sentry project's public DSN (Settings →
+   Client Keys (DSN)).
+3. (Optional) Set `SENTRY_AUTH_TOKEN` in the environment for source-context
+   upload.
+4. Build: `./gradlew clean build`.
+
+### Migration from 1.0.0
+
+Drop-in upgrade. Existing `config/dbhvault.toml` files load unchanged.
+
 ## [1.0.0] — 2026-05-10
 
 First production release. Server-side world backups for Minecraft 26.1+ Fabric servers.
@@ -81,4 +135,5 @@ gate at op level 2. Permission checks use 26.1's typed
 4. As an op: `/vault info` to confirm registration, `/vault backup smoke`
    for a manual test backup.
 
+[1.1.0]: https://github.com/hskrasek/dbhvault/releases/tag/v1.1.0
 [1.0.0]: https://github.com/hskrasek/dbhvault/releases/tag/v1.0.0
