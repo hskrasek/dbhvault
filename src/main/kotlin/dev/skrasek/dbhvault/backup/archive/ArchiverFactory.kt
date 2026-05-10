@@ -1,6 +1,7 @@
 package dev.skrasek.dbhvault.backup.archive
 
 import dev.skrasek.dbhvault.config.ArchiveFormat
+import org.slf4j.LoggerFactory
 
 /**
  * Selects the right [BackupArchiver] for a requested [ArchiveFormat], with a
@@ -25,13 +26,17 @@ import dev.skrasek.dbhvault.config.ArchiveFormat
 class ArchiverFactory(
     private val zstdAvailable: Boolean = detectZstdAvailable(),
 ) {
-    fun create(requested: ArchiveFormat): BackupArchiver =
-        TODO("Implement: dispatch to ZipArchiver or TarZstdArchiver based on effectiveFormat()")
+    fun create(requested: ArchiveFormat): BackupArchiver = when(effectiveFormat(requested)) {
+        ArchiveFormat.TAR_ZST -> TarZstdArchiver()
+        ArchiveFormat.ZIP -> ZipArchiver()
+    }
 
     fun effectiveFormat(requested: ArchiveFormat): ArchiveFormat =
-        TODO("Implement: return requested unless TAR_ZST and !zstdAvailable, in which case return ZIP")
+        if (requested == ArchiveFormat.TAR_ZST && !zstdAvailable) ArchiveFormat.ZIP else requested
 
     companion object {
+        private val logger = LoggerFactory.getLogger(ArchiverFactory::class.java)
+
         /**
          * Probes whether zstd-jni's native library can be loaded by
          * constructing and immediately closing a tiny [ZstdOutputStream].
@@ -41,6 +46,7 @@ class ArchiverFactory(
             com.github.luben.zstd.ZstdOutputStream(java.io.ByteArrayOutputStream()).close()
             true
         } catch (t: Throwable) {
+            logger.warn("zstd-jni native init failed; .tar.zstd will fall back to .zip", t)
             false
         }
     }
