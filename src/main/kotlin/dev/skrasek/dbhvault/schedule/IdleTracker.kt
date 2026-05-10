@@ -1,6 +1,7 @@
 package dev.skrasek.dbhvault.schedule
 
 import dev.skrasek.dbhvault.config.IdleSkipConfig
+import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 
@@ -37,12 +38,24 @@ class IdleTracker(initialActivity: Instant) {
 
     val lastPlayerActivity: Instant get() = lastActivity.get()
 
-    fun playerCountChanged(playerCount: Int, now: Instant): Unit =
-        TODO("Implement: when playerCount > 0, set lastActivity = now; otherwise freeze (no update)")
+    fun playerCountChanged(playerCount: Int, now: Instant): Unit {
+        if (playerCount > 0) {
+            lastActivity.set(now)
+        }
+    }
 
     fun shouldSkipScheduled(
         config: IdleSkipConfig,
         lastBackup: Instant?,
         now: Instant,
-    ): Boolean = TODO("Implement: skip when enabled AND idle past threshold AND lastBackup > activity")
+    ): Boolean {
+        if (!config.enabled) return false
+
+        val activity = lastActivity.get() ?: return false
+        val idleFor = Duration.between(activity, now)
+
+        if (idleFor < Duration.ofHours(config.afterIdleHours.toLong())) return false
+
+        return lastBackup != null && lastBackup.isAfter(activity)
+    }
 }
