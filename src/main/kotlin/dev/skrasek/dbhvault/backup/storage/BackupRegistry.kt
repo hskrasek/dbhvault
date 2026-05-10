@@ -6,11 +6,7 @@ import java.nio.file.Path
 import kotlin.io.path.fileSize
 import kotlin.io.path.name
 
-/**
- * One backup file on disk: its filesystem path, parsed metadata, and size.
- *
- * Fully implemented — only [BackupRegistry] is stubbed.
- */
+/** One backup file on disk: its filesystem path, parsed metadata, and size. */
 data class BackupEntry(
     val path: Path,
     val metadata: BackupMetadata,
@@ -19,26 +15,13 @@ data class BackupEntry(
 
 /**
  * Scans [backupDir] for backup archive files, parses their filenames into
- * [BackupMetadata], and returns them as [BackupEntry] objects.
+ * [BackupMetadata], and returns them as [BackupEntry] objects (newest first).
  *
- * Stub awaiting implementation.
- *
- * Test contract: `src/test/kotlin/dev/skrasek/dbhvault/backup/storage/BackupRegistryTest.kt`
- *
- * Behaviors:
- *  - [list] scans only the **top-level** of [backupDir] — subdirectories are
- *    not recursed into. Each top-level regular file whose name parses via
- *    [BackupMetadata.parse] becomes a [BackupEntry]; non-matching files are
- *    silently skipped (so `README.md`, `.DS_Store`, etc. don't error).
- *  - Returned list is sorted **newest-first** by `metadata.timestamp`.
- *  - `sizeBytes` comes from `Files.size(path)`.
- *  - If [backupDir] does not exist, is not a directory, or is empty, returns
- *    an empty list rather than throwing — a misconfigured path shouldn't
- *    crash the server, and a fresh install has no backups yet.
- *  - [mostRecent] returns the first element of [list] or null if empty.
- *
- * Suggested approach: `Files.list(backupDir)` filtered to regular files,
- * map to [BackupEntry] via parse, drop nulls, sort by descending timestamp.
+ * Top-level only — subdirectories are not recursed. Files whose names don't
+ * parse via [BackupMetadata.parse] (README.md, .DS_Store, etc.) are silently
+ * skipped. If [backupDir] doesn't exist or isn't a directory, returns an
+ * empty list rather than throwing — a misconfigured path shouldn't crash
+ * the server, and a fresh install has no backups yet.
  */
 class BackupRegistry(private val backupDir: Path) {
     fun list(): List<BackupEntry> {

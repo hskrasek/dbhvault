@@ -7,10 +7,8 @@ import java.time.Instant
  *   - [keep]: entries that stay on disk
  *   - [prune]: entries the caller should delete
  *
- * Together, `keep + prune` should equal the input (no entry is "lost"
- * by classification). Order is unspecified.
- *
- * Fully implemented — only [HybridRetention.classify] is stubbed.
+ * Together, `keep + prune` equals the input — every entry is classified,
+ * none are silently lost. Order is unspecified.
  */
 data class RetentionDecision(
     val keep: List<BackupEntry>,

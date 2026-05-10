@@ -4,11 +4,7 @@ import java.nio.file.Path
 import java.time.Duration
 import java.time.Instant
 
-/**
- * Outcome of a single backup attempt.
- *
- * Fully implemented — only [BackupOrchestrator] is stubbed.
- */
+/** Outcome of a single backup attempt. */
 sealed class BackupResult {
     /**
      * The backup completed successfully.

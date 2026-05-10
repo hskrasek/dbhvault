@@ -1,10 +1,6 @@
 package dev.skrasek.dbhvault.backup
 
-/**
- * What kind of backup the orchestrator is being asked to take.
- *
- * Fully implemented — only [BackupOrchestrator] is stubbed.
- */
+/** What kind of backup the orchestrator is being asked to take. */
 sealed class BackupRequest {
     /**
      * A backup triggered by the schedule. Always unpinned (subject to retention).

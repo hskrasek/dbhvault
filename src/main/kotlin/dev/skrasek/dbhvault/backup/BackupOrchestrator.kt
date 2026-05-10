@@ -14,34 +14,19 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * Coordinates a single backup attempt: lock → freeze → archive → thaw → retention → prune.
  *
- * Stub awaiting implementation.
+ * The lock (an [AtomicBoolean]) ensures concurrent invocations short-circuit with
+ * [BackupResult.Skipped]([BackupResult.SkipReason.ALREADY_RUNNING]).
  *
- * Test contract: `src/test/kotlin/dev/skrasek/dbhvault/backup/BackupOrchestratorTest.kt`
+ * [freeze] is invoked under a try/finally so the world's autosave is always
+ * re-enabled — without this, a thrown archiver could leave `noSave=true` on
+ * every loaded level, silently disabling vanilla persistence until restart.
  *
- * Pipeline (in order):
- *  1. **Acquire lock.** Use an `AtomicBoolean.compareAndSet(false, true)`.
- *     If it's already true, return [BackupResult.Skipped] with [BackupResult.SkipReason.ALREADY_RUNNING].
- *  2. **Compute filename.** Use [BackupNaming.fileName] with the orchestrator's [clock]
- *     and the request's name (null for [BackupRequest.Scheduled], the supplied name for
- *     [BackupRequest.Manual]).
- *  3. **Ensure backup directory exists.** `Files.createDirectories(backupDir)`.
- *  4. **Freeze the world.** Call [freeze]() to flush + suspend autosave; the returned
- *     [AutoCloseable] thaws when closed. MUST be closed in a `finally` so a thrown
- *     archiver still re-enables autosave — the test "thaw called even when archive throws"
- *     enforces this.
- *  5. **Archive.** Call [archiver].archive(worldDir, destFile, config.compression.level).
- *  6. **Retention.** registry.list() → retention.classify(...) → prune(decision.prune).
- *  7. **Return Success.** with file, size, timestamp, duration, pinned flag.
- *  8. **On any throwable inside step 5–7:** delete the partial dest file if present,
- *     return [BackupResult.Failed] with the cause.
- *  9. **Always:** release the lock (via `try { ... } finally { running.set(false) }`).
+ * [freeze] and [prune] are constructor-injected so tests can substitute
+ * lightweight stand-ins without a real `MinecraftServer` or filesystem deletion.
  *
- * `pinned` in [BackupResult.Success] reflects whether the request was [BackupRequest.Manual]
- * with a non-null name (i.e., the request asked for pinning, regardless of whether the
- * sanitized filename ends up retaining a `--<name>` suffix).
- *
- * The [freeze] and [prune] callbacks are constructor-injected so tests can inject test
- * doubles without needing a real `MinecraftServer` or filesystem deletion.
+ * `pinned` in [BackupResult.Success] reflects the *request's* intent
+ * ([BackupRequest.Manual] with non-null name), independent of whether the
+ * sanitized filename ends up retaining a `--<name>` suffix.
  */
 class BackupOrchestrator(
     private val config: Config,

@@ -5,23 +5,12 @@ import org.slf4j.LoggerFactory
 
 /**
  * Selects the right [BackupArchiver] for a requested [ArchiveFormat], with a
- * graceful fallback to [ZipArchiver] when zstd-jni's native libs can't be
- * loaded on the host (rare, but happens on hardened/sandboxed servers).
+ * graceful fallback to [ZipArchiver] when zstd-jni's native libs can't load
+ * on the host (rare, but happens on hardened/sandboxed servers).
  *
- * Stub awaiting implementation.
- *
- * Test contract: `src/test/kotlin/dev/skrasek/dbhvault/backup/archive/ArchiverFactoryTest.kt`
- *
- * Behaviors specified by the tests:
- *  - [create]`(ZIP)` → [ZipArchiver]
- *  - [create]`(TAR_ZST)` → [TarZstdArchiver] when [zstdAvailable] is true,
- *    [ZipArchiver] when false
- *  - [effectiveFormat]`(req)` returns the format that [create] would actually
- *    produce, so callers can log or pick a file extension correctly.
- *
- * The constructor takes [zstdAvailable] as a parameter (rather than
- * detecting at runtime) to keep both code paths testable. The production
- * call site should pass [detectZstdAvailable] as the argument.
+ * [zstdAvailable] is constructor-injected so the fallback path is testable
+ * without manipulating the native lib loader. The production call site uses
+ * [detectZstdAvailable] as the default.
  */
 class ArchiverFactory(
     private val zstdAvailable: Boolean = detectZstdAvailable(),
