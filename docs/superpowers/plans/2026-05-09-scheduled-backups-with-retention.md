@@ -896,7 +896,7 @@ git commit -m "add BackupArchiver interface and ZipArchiver impl"
 
 zstd-jni only ships its own `ZstdOutputStream`; tar framing must be done by hand. The tar format ([USTAR](https://en.wikipedia.org/wiki/Tar_(computing)#File_format)) is simple: 512-byte header per file, name+size+checksum, then file content padded to 512-byte blocks.
 
-- [ ] **Step 1: Implement `TarZstdArchiver.kt`**
+- [x] **Step 1: Implement `TarZstdArchiver.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup.archive
@@ -982,7 +982,7 @@ class TarZstdArchiver : BackupArchiver {
 }
 ```
 
-- [ ] **Step 2: Write `ArchiverFactoryTest.kt`**
+- [x] **Step 2: Write `ArchiverFactoryTest.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup.archive
@@ -1013,7 +1013,7 @@ class ArchiverFactoryTest {
 }
 ```
 
-- [ ] **Step 3: Implement `ArchiverFactory.kt`**
+- [x] **Step 3: Implement `ArchiverFactory.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup.archive
@@ -1045,12 +1045,12 @@ object ArchiverFactory {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `./gradlew test --tests "dev.skrasek.dbhvault.backup.archive.*"`
 Expected: All tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/backup/archive/TarZstdArchiver.kt \

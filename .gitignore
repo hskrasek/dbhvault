@@ -21,6 +21,7 @@ bin/
 
 # Fabric
 run/
+logs/
 .fabric/
 remappedSrc/
 

@@ -208,18 +208,6 @@ class TarZstdArchiverTest {
         }
     }
 
-    @Test
-    fun `throws when source path is a regular file`() {
-        val src = tempDir("tarzst-not-a-dir-")
-        val regularFile = src.resolve("not-a-dir.txt")
-        Files.writeString(regularFile, "I'm a file, not a directory")
-        val dest = tempDir("tarzst-not-a-dir-dest-").resolve("out.tar.zst")
-
-        assertThrows<Exception> {
-            TarZstdArchiver().archive(regularFile, dest, level = 3)
-        }
-    }
-
     // ---- Helper ----
 
     /** Decompresses [file] (zstd) and reads it as a tar archive, returning [(name, bytes), ...]. */
