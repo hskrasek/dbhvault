@@ -2909,7 +2909,7 @@ Expected: BUILD SUCCESSFUL. If `MinecraftServer.submit`, `MinecraftServer.getWor
 Run: `./gradlew test`
 Expected: All tests pass.
 
-- [ ] **Step 5: Smoke test by launching the dev server**
+- [x] **Step 5: Smoke test by launching the dev server**
 
 Run: `./gradlew runServer`
 
