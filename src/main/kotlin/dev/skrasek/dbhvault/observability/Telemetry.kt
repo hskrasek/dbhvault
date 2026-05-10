@@ -106,9 +106,10 @@ object Telemetry {
             /* name = */ "Sentry",
             /* minimumBreadcrumbLevel = */ Level.INFO,
             /* minimumEventLevel = */ Level.ERROR,
+            /* minimumLevel = */ null,
             /* dsn = */ null,
-            /* sendDefaultPii = */ false,
-            /* options = */ null,
+            /* debug = */ false,
+            /* contextTags = */ null,
             /* filter = */ null,
         ) ?: error("SentryAppender.createAppender returned null")
         appender.start()

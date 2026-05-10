@@ -4,6 +4,7 @@ plugins {
     id("net.fabricmc.fabric-loom")
     kotlin("jvm")
     kotlin("plugin.serialization")
+    id("io.sentry.jvm.gradle")
     `maven-publish`
 }
 
@@ -121,4 +122,14 @@ publishing {
     }
     repositories {
     }
+}
+
+sentry {
+    // Uploads a JVM source bundle so Sentry stack traces show the actual
+    // Kotlin source lines. Only runs when SENTRY_AUTH_TOKEN is set in the env;
+    // otherwise the upload step is skipped and the build is unaffected.
+    includeSourceContext = true
+    org = "hskrasek"
+    projectName = "dbhvault"
+    authToken = System.getenv("SENTRY_AUTH_TOKEN") ?: ""
 }

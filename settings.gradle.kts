@@ -6,11 +6,13 @@ pluginManagement {
 
     val loomVersion = settings.providers.gradleProperty("loom_version").get()
     val kotlinVersion = settings.providers.gradleProperty("kotlin_version").get()
+    val sentryGradlePluginVersion = settings.providers.gradleProperty("sentry_gradle_plugin_version").get()
 
     plugins {
         id("net.fabricmc.fabric-loom") version loomVersion
         kotlin("jvm") version kotlinVersion
         kotlin("plugin.serialization") version kotlinVersion
+        id("io.sentry.jvm.gradle") version sentryGradlePluginVersion
     }
 }
 
