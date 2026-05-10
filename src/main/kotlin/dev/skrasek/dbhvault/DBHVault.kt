@@ -142,7 +142,12 @@ object DBHVault : DedicatedServerModInitializer {
         )
         runtimeRef.set(runtime)
 
-        VaultCommand.register(runtime)
+        // Register directly on the live dispatcher: Fabric's
+        // CommandRegistrationCallback already fired (during the dedicated-server
+        // worldStem load on the main thread, before SERVER_STARTING fires on
+        // the server thread), so attaching a callback now would only take effect
+        // after a /reload.
+        VaultCommand.registerDirect(server.commands.dispatcher, runtime)
         scheduler.start(scope)
 
         logger.info(
