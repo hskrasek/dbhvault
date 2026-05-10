@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] — 2026-05-10
+
+### Fixed
+
+- Bundle `tomlkt`, `zstd-jni`, and `sentry-log4j2` via Loom's
+  Jar-in-Jar (`include(...)`). Previously these were `implementation`-only,
+  so the published jar ran on a dedicated server with three missing
+  classpath libraries:
+  - `tomlkt` crashed `ConfigManager` at boot with
+    `NoClassDefFoundError: net/peanuuutz/tomlkt/Toml`.
+  - `zstd-jni` silently failed `detectZstdAvailable()`, downgrading
+    `.tar.zst` backups to `.zip`.
+  - `sentry-log4j2` silently failed `Telemetry.init()`, leaving Sentry
+    as a no-op even when a DSN was baked in.
+- The Sentry inclusion excludes the `org.apache.logging.log4j` group so
+  Minecraft's bundled log4j remains the sole copy on the classpath.
+
 ## [1.1.0] — 2026-05-10
 
 Adds Sentry SaaS observability so server-side errors and backup failures

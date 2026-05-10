@@ -53,9 +53,20 @@ dependencies {
     // exists yet. Re-add when one ships and wire it into permissions/Permissions.kt.
     // implementation("me.lucko:fabric-permissions-api:$fabricPermissionsVersion")
     implementation("com.github.luben:zstd-jni:$zstdJniVersion")
+    include("com.github.luben:zstd-jni:$zstdJniVersion")
+
     implementation("net.peanuuutz.tomlkt:tomlkt:$tomlktVersion")
+    include("net.peanuuutz.tomlkt:tomlkt:$tomlktVersion")
+
+    // Not included on purpose — fabric-language-kotlin ships kotlinx-coroutines-core
+    // at runtime, so JIJ'ing it would shadow the FLK-provided copy.
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion")
+
     implementation("io.sentry:sentry-log4j2:$sentryVersion")
+    // Loom's include configuration is non-transitive; list sentry-core explicitly.
+    // log4j-api/log4j-core are supplied by Minecraft and must not be re-bundled.
+    include("io.sentry:sentry-log4j2:$sentryVersion")
+    include("io.sentry:sentry:$sentryVersion")
 
     testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
