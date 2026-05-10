@@ -124,12 +124,27 @@ publishing {
     }
 }
 
+val sentryAuthToken: String = System.getenv("SENTRY_AUTH_TOKEN").orEmpty()
+
 sentry {
     // Uploads a JVM source bundle so Sentry stack traces show the actual
-    // Kotlin source lines. Only runs when SENTRY_AUTH_TOKEN is set in the env;
-    // otherwise the upload step is skipped and the build is unaffected.
-    includeSourceContext = true
+    // Kotlin source lines. Only enabled when SENTRY_AUTH_TOKEN is set in the
+    // env (release builds); otherwise the source-bundle and upload tasks are
+    // skipped entirely and the build is unaffected.
+    includeSourceContext = sentryAuthToken.isNotBlank()
     org = "hskrasek"
     projectName = "dbhvault"
-    authToken = System.getenv("SENTRY_AUTH_TOKEN") ?: ""
+    authToken = sentryAuthToken
+}
+
+// Gradle 9 task-dependency validation: the Sentry plugin's generator tasks
+// produce files under build/generated/sentry that the sourcesJar input set
+// picks up, but the plugin doesn't wire the dependency. Declare it here so
+// sourcesJar always runs after the Sentry generators.
+tasks.named("sourcesJar") {
+    dependsOn(
+        "collectExternalDependenciesForSentry",
+        "generateSentryBundleIdJava",
+        "generateSentryDebugMetaPropertiesjava",
+    )
 }

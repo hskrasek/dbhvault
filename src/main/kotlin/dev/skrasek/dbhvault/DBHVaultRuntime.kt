@@ -5,6 +5,7 @@ import dev.skrasek.dbhvault.backup.storage.BackupRegistry
 import dev.skrasek.dbhvault.config.Config
 import dev.skrasek.dbhvault.config.ConfigManager
 import dev.skrasek.dbhvault.notify.Notifier
+import dev.skrasek.dbhvault.observability.Telemetry
 import dev.skrasek.dbhvault.schedule.BackupScheduler
 import dev.skrasek.dbhvault.schedule.IdleTracker
 import kotlinx.coroutines.CoroutineScope
@@ -29,6 +30,7 @@ class DBHVaultRuntime(
         configHolder.set(next)
         configManager.save(next)
         scheduler.updateConfig(next.schedule)
+        Telemetry.refreshConfigContext(next)
         notifier.send(next.notifications.configEvents, "$summary (by ${source.textName})")
     }
 }
