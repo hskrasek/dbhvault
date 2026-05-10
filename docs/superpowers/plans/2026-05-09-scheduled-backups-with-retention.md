@@ -768,7 +768,7 @@ git commit -m "add backup naming and metadata parsing"
 - Create: `src/main/kotlin/dev/skrasek/dbhvault/backup/archive/ZipArchiver.kt`
 - Create: `src/test/kotlin/dev/skrasek/dbhvault/backup/archive/ZipArchiverTest.kt`
 
-- [ ] **Step 1: Create the interface**
+- [x] **Step 1: Create the interface**
 
 `src/main/kotlin/dev/skrasek/dbhvault/backup/archive/BackupArchiver.kt`:
 
@@ -787,7 +787,7 @@ interface BackupArchiver {
 }
 ```
 
-- [ ] **Step 2: Write `ZipArchiverTest.kt`**
+- [x] **Step 2: Write `ZipArchiverTest.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup.archive
@@ -832,12 +832,12 @@ class ZipArchiverTest {
 }
 ```
 
-- [ ] **Step 3: Run, verify failure**
+- [x] **Step 3: Run, verify failure**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.backup.archive.ZipArchiverTest`
 Expected: COMPILATION ERROR.
 
-- [ ] **Step 4: Implement `ZipArchiver.kt`**
+- [x] **Step 4: Implement `ZipArchiver.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup.archive
@@ -871,12 +871,12 @@ class ZipArchiver : BackupArchiver {
 }
 ```
 
-- [ ] **Step 5: Run test, verify pass**
+- [x] **Step 5: Run test, verify pass**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.backup.archive.ZipArchiverTest`
 Expected: 2 tests, 0 failures.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/backup/archive/BackupArchiver.kt \
