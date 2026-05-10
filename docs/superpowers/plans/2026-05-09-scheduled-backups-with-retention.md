@@ -1656,7 +1656,7 @@ The idle tracker decides whether a *scheduled* backup should be skipped. The rul
 >
 > Condition 4 ensures we always take ONE backup capturing the post-activity world state, then go quiet.
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 ```kotlin
 package dev.skrasek.dbhvault.schedule
@@ -1728,12 +1728,12 @@ class IdleTrackerTest {
 }
 ```
 
-- [ ] **Step 2: Verify failure**
+- [x] **Step 2: Verify failure**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.schedule.IdleTrackerTest`
 Expected: COMPILATION ERROR.
 
-- [ ] **Step 3: Implement `Clock.kt`**
+- [x] **Step 3: Implement `Clock.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.schedule
@@ -1746,7 +1746,7 @@ typealias Clock = JdkClock
 
 (This file is intentionally minimal; it documents that the project uses `java.time.Clock` for injectable time.)
 
-- [ ] **Step 4: Implement `IdleTracker.kt`**
+- [x] **Step 4: Implement `IdleTracker.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.schedule
@@ -1796,12 +1796,12 @@ class IdleTracker(initialActivity: Instant) {
 }
 ```
 
-- [ ] **Step 5: Verify pass**
+- [x] **Step 5: Verify pass**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.schedule.IdleTrackerTest`
 Expected: 6 tests, 0 failures.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/schedule/Clock.kt \
@@ -1818,7 +1818,7 @@ git commit -m "add IdleTracker with idle-skip rules"
 - Create: `src/main/kotlin/dev/skrasek/dbhvault/schedule/BackupScheduler.kt`
 - Create: `src/test/kotlin/dev/skrasek/dbhvault/schedule/BackupSchedulerTest.kt`
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 ```kotlin
 package dev.skrasek.dbhvault.schedule
@@ -1892,12 +1892,12 @@ class BackupSchedulerTest {
 }
 ```
 
-- [ ] **Step 2: Verify failure**
+- [x] **Step 2: Verify failure**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.schedule.BackupSchedulerTest`
 Expected: COMPILATION ERROR.
 
-- [ ] **Step 3: Implement `BackupScheduler.kt`**
+- [x] **Step 3: Implement `BackupScheduler.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.schedule
@@ -1957,12 +1957,12 @@ class BackupScheduler(
 }
 ```
 
-- [ ] **Step 4: Verify pass**
+- [x] **Step 4: Verify pass**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.schedule.BackupSchedulerTest`
 Expected: 3 tests, 0 failures.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/schedule/BackupScheduler.kt \
@@ -1979,7 +1979,7 @@ git commit -m "add coroutine-based BackupScheduler with idle-skip"
 
 This wraps `me.lucko.fabric.api.permissions.v0.Permissions.check(source, node, defaultOpLevel)`. The library already implements LuckPerms-or-fallback internally; we just centralize node names.
 
-- [ ] **Step 1: Implement `Permissions.kt`**
+- [x] **Step 1: Implement `Permissions.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.permissions
@@ -2006,12 +2006,12 @@ object Permissions {
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [x] **Step 2: Verify it compiles**
 
 Run: `./gradlew compileKotlin`
 Expected: BUILD SUCCESSFUL.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/permissions/Permissions.kt
@@ -2025,7 +2025,7 @@ git commit -m "add Permissions wrapper using fabric-permissions-api"
 **Files:**
 - Create: `src/main/kotlin/dev/skrasek/dbhvault/notify/Notifier.kt`
 
-- [ ] **Step 1: Implement `Notifier.kt`**
+- [x] **Step 1: Implement `Notifier.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.notify
@@ -2053,12 +2053,12 @@ class Notifier(private val server: MinecraftServer) {
 }
 ```
 
-- [ ] **Step 2: Verify compile**
+- [x] **Step 2: Verify compile**
 
 Run: `./gradlew compileKotlin`
 Expected: BUILD SUCCESSFUL. If `playerList.players`, `isOperator`, or `sendMessage` symbols differ in 26.1, adjust to match the deobfuscated names.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/notify/Notifier.kt

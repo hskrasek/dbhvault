@@ -13,7 +13,7 @@ val minecraftVersion = property("minecraft_version") as String
 val loaderVersion = property("loader_version") as String
 val fabricApiVersion = property("fabric_api_version") as String
 val fabricKotlinVersion = property("fabric_kotlin_version") as String
-val fabricPermissionsVersion = property("fabric_permissions_version") as String
+// val fabricPermissionsVersion = property("fabric_permissions_version") as String
 val zstdJniVersion = property("zstd_jni_version") as String
 val tomlktVersion = property("tomlkt_version") as String
 val kotlinxCoroutinesVersion = property("kotlinx_coroutines_version") as String
@@ -45,7 +45,9 @@ dependencies {
     // https://github.com/FabricMC/fabric-language-kotlin
     implementation("net.fabricmc:fabric-language-kotlin:$fabricKotlinVersion")
 
-    implementation("me.lucko:fabric-permissions-api:$fabricPermissionsVersion")
+    // fabric-permissions-api was the original plan; no 26.1-compatible release
+    // exists yet. Re-add when one ships and wire it into permissions/Permissions.kt.
+    // implementation("me.lucko:fabric-permissions-api:$fabricPermissionsVersion")
     implementation("com.github.luben:zstd-jni:$zstdJniVersion")
     implementation("net.peanuuutz.tomlkt:tomlkt:$tomlktVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion")
