@@ -4,7 +4,7 @@
 
 **Goal:** Implement DBHVault's core feature — corruption-safe asynchronous world backups on a configurable interval schedule with hybrid retention (count + age), manual `/vault` slash commands, and idle-skip behavior to avoid pointless backups of an unchanged world.
 
-**Architecture:** A single `BackupOrchestrator` coordinates a four-phase backup pipeline (flush → archive → register → prune) on a coroutine-based `SupervisorJob` scoped to server lifetime. World corruption is prevented by a main-thread `WorldFlush` step (`MinecraftServer.saveAll(suppressLog=true, flush=true, force=false)` then `world.savingDisabled = true`) before any IO begins. Archive format and retention are pluggable behind interfaces (`BackupArchiver`, `RetentionPolicy`) so future tiered retention or alternate formats slot in without rewriting the orchestrator.
+**Architecture:** A single `BackupOrchestrator` coordinates a four-phase backup pipeline (flush → archive → register → prune) on a coroutine-based `SupervisorJob` scoped to server lifetime. World corruption is prevented by a main-thread `WorldFlush` step (`MinecraftServer.saveAllChunks(suppressLog=true, flush=true, force=false)` then `level.noSave = true`) before any IO begins. Archive format and retention are pluggable behind interfaces (`BackupArchiver`, `RetentionPolicy`) so future tiered retention or alternate formats slot in without rewriting the orchestrator.
 
 **Tech Stack:** Kotlin 2.3.21, Fabric Loader 0.19.2, Fabric API 0.145.1+26.1, fabric-language-kotlin 1.13.11+kotlin.2.3.21, fabric-permissions-api 0.3.1, kotlinx-coroutines, tomlkt 0.3.7, zstd-jni 1.5.6-3, JUnit 5 + MockK + kotlinx-coroutines-test.
 
@@ -1335,7 +1335,7 @@ git commit -m "add HybridRetention policy"
 
 This task has no automated test — it depends on `MinecraftServer`, which isn't trivially mockable. We'll smoke-test via `runServer` in Task 14. Use the public deobfuscated API per 26.1.
 
-- [ ] **Step 1: Implement `WorldFlush.kt`**
+- [x] **Step 1: Implement `WorldFlush.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup
@@ -1350,8 +1350,8 @@ import org.slf4j.LoggerFactory
  *   val token = WorldFlush.freeze(server)
  *   try { archive(...) } finally { token.thaw() }
  *
- * `freeze` calls saveAll(suppressLog=true, flush=true, force=false) which forces region
- * files to flush to disk, then sets savingDisabled=true on every loaded ServerWorld so
+ * `freeze` calls saveAllChunks(suppressLog=true, flush=true, force=false) which forces region
+ * files to flush to disk, then sets noSave=true on every loaded ServerLevel so
  * mid-backup chunk saves don't race with the archive read.
  */
 object WorldFlush {
@@ -1360,8 +1360,8 @@ object WorldFlush {
     class FrozenToken(private val server: MinecraftServer) {
         fun thaw() {
             server.execute {
-                for (world in server.worlds) {
-                    world.savingDisabled = false
+                for (level in server.allLevels) {
+                    level.noSave = false
                 }
                 logger.debug("Saving re-enabled on all worlds")
             }
@@ -1373,23 +1373,23 @@ object WorldFlush {
      * Caller owns the returned token and MUST call [FrozenToken.thaw] in a finally block.
      */
     fun freeze(server: MinecraftServer): FrozenToken {
-        check(server.isOnThread) { "WorldFlush.freeze must be called on the server thread" }
+        check(server.isSameThread) { "WorldFlush.freeze must be called on the server thread" }
         logger.debug("Flushing all worlds before backup")
-        server.saveAll(/* suppressLog = */ true, /* flush = */ true, /* force = */ false)
-        for (world in server.worlds) {
-            world.savingDisabled = true
+        server.saveAllChunks(/* suppressLog = */ true, /* flush = */ true, /* force = */ false)
+        for (level in server.allLevels) {
+            level.noSave = true
         }
         return FrozenToken(server)
     }
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [x] **Step 2: Verify it compiles**
 
 Run: `./gradlew compileKotlin`
-Expected: BUILD SUCCESSFUL. If a Mojang API symbol has been renamed in 26.1, update accordingly — `MinecraftServer.saveAll`, `MinecraftServer.worlds`, `ServerWorld.savingDisabled`, and `MinecraftServer.execute` are the symbols to verify.
+Expected: BUILD SUCCESSFUL. If a Mojang API symbol has been renamed in 26.1, update accordingly — `MinecraftServer.saveAllChunks`, `MinecraftServer.allLevels`, `ServerLevel.noSave`, and `MinecraftServer.execute` are the symbols to verify.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/backup/WorldFlush.kt
@@ -1985,7 +1985,7 @@ This wraps `me.lucko.fabric.api.permissions.v0.Permissions.check(source, node, d
 package dev.skrasek.dbhvault.permissions
 
 import me.lucko.fabric.api.permissions.v0.Permissions as FabricPermissions
-import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.commands.CommandSourceStack
 
 object Permissions {
     private const val ROOT = "dbhvault"
@@ -2001,7 +2001,7 @@ object Permissions {
     }
 
     /** Op level 4 fallback for mutating ops; level 2 for read-only. */
-    fun check(source: ServerCommandSource, node: String, fallbackOp: Int = 4): Boolean =
+    fun check(source: CommandSourceStack, node: String, fallbackOp: Int = 4): Boolean =
         FabricPermissions.check(source, node, fallbackOp)
 }
 ```
@@ -2032,7 +2032,7 @@ package dev.skrasek.dbhvault.notify
 
 import dev.skrasek.dbhvault.config.BroadcastScope
 import net.minecraft.server.MinecraftServer
-import net.minecraft.text.Text
+import net.minecraft.network.chat.Component
 import org.slf4j.LoggerFactory
 
 class Notifier(private val server: MinecraftServer) {
@@ -2042,10 +2042,10 @@ class Notifier(private val server: MinecraftServer) {
         // Always log.
         logger.info("[DBHVault] {}", message)
         if (scope == BroadcastScope.LOG_ONLY) return
-        val text = Text.literal("[DBHVault] $message")
+        val text = Component.literal("[DBHVault] $message")
         server.execute {
-            for (player in server.playerManager.playerList) {
-                if (scope == BroadcastScope.OPS_ONLY && !server.playerManager.isOperator(player.gameProfile)) continue
+            for (player in server.playerList.players) {
+                if (scope == BroadcastScope.OPS_ONLY && !server.playerList.isOp(player.gameProfile)) continue
                 player.sendMessage(text, false)
             }
         }
@@ -2056,7 +2056,7 @@ class Notifier(private val server: MinecraftServer) {
 - [ ] **Step 2: Verify compile**
 
 Run: `./gradlew compileKotlin`
-Expected: BUILD SUCCESSFUL. If `playerManager.playerList`, `isOperator`, or `sendMessage` symbols differ in 26.1, adjust to match the deobfuscated names.
+Expected: BUILD SUCCESSFUL. If `playerList.players`, `isOperator`, or `sendMessage` symbols differ in 26.1, adjust to match the deobfuscated names.
 
 - [ ] **Step 3: Commit**
 
@@ -2073,7 +2073,7 @@ git commit -m "add Notifier with scope-based broadcast"
 - Create: `src/main/kotlin/dev/skrasek/dbhvault/command/VaultCommand.kt`
 - Create: `src/main/kotlin/dev/skrasek/dbhvault/command/InfoSubcommand.kt`
 
-We register `/vault` as a Brigadier root and dispatch to subcommand builders. Each subcommand is its own object exposing a `register(LiteralArgumentBuilder<ServerCommandSource>)` extension.
+We register `/vault` as a Brigadier root and dispatch to subcommand builders. Each subcommand is its own object exposing a `register(LiteralArgumentBuilder<CommandSourceStack>)` extension.
 
 - [ ] **Step 1: Implement `VaultCommand.kt`**
 
@@ -2084,8 +2084,8 @@ import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import dev.skrasek.dbhvault.DBHVaultRuntime
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.commands.Commands
+import net.minecraft.commands.CommandSourceStack
 
 object VaultCommand {
     fun register(runtime: DBHVaultRuntime) {
@@ -2094,8 +2094,8 @@ object VaultCommand {
         }
     }
 
-    private fun register(dispatcher: CommandDispatcher<ServerCommandSource>, runtime: DBHVaultRuntime) {
-        val root: LiteralArgumentBuilder<ServerCommandSource> = CommandManager.literal("vault")
+    private fun register(dispatcher: CommandDispatcher<CommandSourceStack>, runtime: DBHVaultRuntime) {
+        val root: LiteralArgumentBuilder<CommandSourceStack> = Commands.literal("vault")
         BackupSubcommand.register(root, runtime)
         ListSubcommand.register(root, runtime)
         InfoSubcommand.register(root, runtime)
@@ -2118,16 +2118,16 @@ package dev.skrasek.dbhvault.command
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import dev.skrasek.dbhvault.DBHVaultRuntime
 import dev.skrasek.dbhvault.permissions.Permissions
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.text.Text
+import net.minecraft.commands.Commands
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.network.chat.Component
 import java.time.Duration
 import java.time.Instant
 
 object InfoSubcommand {
-    fun register(root: LiteralArgumentBuilder<ServerCommandSource>, runtime: DBHVaultRuntime) {
+    fun register(root: LiteralArgumentBuilder<CommandSourceStack>, runtime: DBHVaultRuntime) {
         root.then(
-            CommandManager.literal("info")
+            Commands.literal("info")
                 .requires { Permissions.check(it, Permissions.Node.INFO, fallbackOp = 2) }
                 .executes { ctx ->
                     val cfg = runtime.config()
@@ -2139,8 +2139,8 @@ object InfoSubcommand {
                     val sched = if (cfg.schedule.enabled) "every ${cfg.schedule.intervalHours}h" else "disabled"
                     val ret = "keepLast=${cfg.retention.keepLast}, keepWithinDays=${cfg.retention.keepWithinDays}"
                     val idle = if (cfg.schedule.idleSkip.enabled) "after ${cfg.schedule.idleSkip.afterIdleHours}h idle" else "disabled"
-                    ctx.source.sendFeedback({
-                        Text.literal("DBHVault — schedule: $sched | retention: $ret | idle-skip: $idle\n$recentLine")
+                    ctx.source.sendSuccess({
+                        Component.literal("DBHVault — schedule: $sched | retention: $ret | idle-skip: $idle\n$recentLine")
                     }, false)
                     1
                 }
@@ -2163,25 +2163,25 @@ package dev.skrasek.dbhvault.command
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import dev.skrasek.dbhvault.DBHVaultRuntime
-import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.commands.CommandSourceStack
 
 internal object BackupSubcommand {
-    fun register(root: LiteralArgumentBuilder<ServerCommandSource>, runtime: DBHVaultRuntime) {}
+    fun register(root: LiteralArgumentBuilder<CommandSourceStack>, runtime: DBHVaultRuntime) {}
 }
 internal object ListSubcommand {
-    fun register(root: LiteralArgumentBuilder<ServerCommandSource>, runtime: DBHVaultRuntime) {}
+    fun register(root: LiteralArgumentBuilder<CommandSourceStack>, runtime: DBHVaultRuntime) {}
 }
 internal object ScheduleSubcommand {
-    fun register(root: LiteralArgumentBuilder<ServerCommandSource>, runtime: DBHVaultRuntime) {}
+    fun register(root: LiteralArgumentBuilder<CommandSourceStack>, runtime: DBHVaultRuntime) {}
 }
 internal object RetentionSubcommand {
-    fun register(root: LiteralArgumentBuilder<ServerCommandSource>, runtime: DBHVaultRuntime) {}
+    fun register(root: LiteralArgumentBuilder<CommandSourceStack>, runtime: DBHVaultRuntime) {}
 }
 internal object IdleSubcommand {
-    fun register(root: LiteralArgumentBuilder<ServerCommandSource>, runtime: DBHVaultRuntime) {}
+    fun register(root: LiteralArgumentBuilder<CommandSourceStack>, runtime: DBHVaultRuntime) {}
 }
 internal object ConfigSubcommand {
-    fun register(root: LiteralArgumentBuilder<ServerCommandSource>, runtime: DBHVaultRuntime) {}
+    fun register(root: LiteralArgumentBuilder<CommandSourceStack>, runtime: DBHVaultRuntime) {}
 }
 ```
 
@@ -2257,26 +2257,26 @@ import dev.skrasek.dbhvault.permissions.Permissions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.text.Text
+import net.minecraft.commands.Commands
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.network.chat.Component
 import java.time.Duration
 
 internal object BackupSubcommand {
-    fun register(root: LiteralArgumentBuilder<ServerCommandSource>, runtime: DBHVaultRuntime) {
+    fun register(root: LiteralArgumentBuilder<CommandSourceStack>, runtime: DBHVaultRuntime) {
         root.then(
-            CommandManager.literal("backup")
+            Commands.literal("backup")
                 .requires { Permissions.check(it, Permissions.Node.BACKUP, fallbackOp = 4) }
                 .executes { trigger(it.source, runtime, name = null) }
                 .then(
-                    CommandManager.argument("name", StringArgumentType.word())
+                    Commands.argument("name", StringArgumentType.word())
                         .executes { trigger(it.source, runtime, StringArgumentType.getString(it, "name")) }
                 )
         )
     }
 
-    private fun trigger(source: ServerCommandSource, runtime: DBHVaultRuntime, name: String?): Int {
-        source.sendFeedback({ Text.literal("Starting backup${if (name != null) " '$name'" else ""}...") }, false)
+    private fun trigger(source: CommandSourceStack, runtime: DBHVaultRuntime, name: String?): Int {
+        source.sendSuccess({ Component.literal("Starting backup${if (name != null) " '$name'" else ""}...") }, false)
         runtime.scope.launch(Dispatchers.IO) {
             val result = runtime.orchestrator.runIfFree(BackupRequest.Manual(name))
             val msg = when (result) {
@@ -2331,23 +2331,23 @@ package dev.skrasek.dbhvault.command
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import dev.skrasek.dbhvault.DBHVaultRuntime
 import dev.skrasek.dbhvault.permissions.Permissions
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.text.Text
+import net.minecraft.commands.Commands
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.network.chat.Component
 import java.time.format.DateTimeFormatter
 import java.time.ZoneOffset
 
 internal object ListSubcommand {
     private val FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z").withZone(ZoneOffset.UTC)
 
-    fun register(root: LiteralArgumentBuilder<ServerCommandSource>, runtime: DBHVaultRuntime) {
+    fun register(root: LiteralArgumentBuilder<CommandSourceStack>, runtime: DBHVaultRuntime) {
         root.then(
-            CommandManager.literal("list")
+            Commands.literal("list")
                 .requires { Permissions.check(it, Permissions.Node.LIST, fallbackOp = 2) }
                 .executes { ctx ->
                     val entries = runtime.registry.list()
                     if (entries.isEmpty()) {
-                        ctx.source.sendFeedback({ Text.literal("No backups found.") }, false)
+                        ctx.source.sendSuccess({ Component.literal("No backups found.") }, false)
                     } else {
                         val lines = buildString {
                             appendLine("DBHVault — ${entries.size} backup(s):")
@@ -2357,7 +2357,7 @@ internal object ListSubcommand {
                                 appendLine("  ${FORMAT.format(e.metadata.timestamp)}  ${sizeMiB} MiB  ${e.path.fileName}$pin")
                             }
                         }.trimEnd()
-                        ctx.source.sendFeedback({ Text.literal(lines) }, false)
+                        ctx.source.sendSuccess({ Component.literal(lines) }, false)
                     }
                     1
                 }
@@ -2400,35 +2400,35 @@ import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import dev.skrasek.dbhvault.DBHVaultRuntime
 import dev.skrasek.dbhvault.permissions.Permissions
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.text.Text
+import net.minecraft.commands.Commands
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.network.chat.Component
 
 internal object ScheduleSubcommand {
-    fun register(root: LiteralArgumentBuilder<ServerCommandSource>, runtime: DBHVaultRuntime) {
+    fun register(root: LiteralArgumentBuilder<CommandSourceStack>, runtime: DBHVaultRuntime) {
         root.then(
-            CommandManager.literal("schedule")
+            Commands.literal("schedule")
                 .requires { Permissions.check(it, Permissions.Node.SCHEDULE, fallbackOp = 4) }
-                .then(CommandManager.literal("pause").executes { setEnabled(it.source, runtime, enabled = false) })
-                .then(CommandManager.literal("resume").executes { setEnabled(it.source, runtime, enabled = true) })
+                .then(Commands.literal("pause").executes { setEnabled(it.source, runtime, enabled = false) })
+                .then(Commands.literal("resume").executes { setEnabled(it.source, runtime, enabled = true) })
                 .then(
-                    CommandManager.literal("interval")
+                    Commands.literal("interval")
                         .then(
-                            CommandManager.argument("hours", IntegerArgumentType.integer(1, 168))
+                            Commands.argument("hours", IntegerArgumentType.integer(1, 168))
                                 .executes { setInterval(it.source, runtime, IntegerArgumentType.getInteger(it, "hours")) }
                         )
                 )
         )
     }
 
-    private fun setEnabled(source: ServerCommandSource, runtime: DBHVaultRuntime, enabled: Boolean): Int {
+    private fun setEnabled(source: CommandSourceStack, runtime: DBHVaultRuntime, enabled: Boolean): Int {
         val current = runtime.config()
         val next = current.copy(schedule = current.schedule.copy(enabled = enabled))
         runtime.applyConfig(next, "Schedule ${if (enabled) "resumed" else "paused"}", source)
         return 1
     }
 
-    private fun setInterval(source: ServerCommandSource, runtime: DBHVaultRuntime, hours: Int): Int {
+    private fun setInterval(source: CommandSourceStack, runtime: DBHVaultRuntime, hours: Int): Int {
         val current = runtime.config()
         val next = current.copy(schedule = current.schedule.copy(intervalHours = hours))
         runtime.applyConfig(next, "Schedule interval set to ${hours}h", source)
@@ -2454,7 +2454,7 @@ import dev.skrasek.dbhvault.notify.Notifier
 import dev.skrasek.dbhvault.schedule.BackupScheduler
 import dev.skrasek.dbhvault.schedule.IdleTracker
 import kotlinx.coroutines.CoroutineScope
-import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.commands.CommandSourceStack
 import java.util.concurrent.atomic.AtomicReference
 
 class DBHVaultRuntime(
@@ -2471,7 +2471,7 @@ class DBHVaultRuntime(
 
     fun config(): Config = configHolder.get()
 
-    fun applyConfig(next: Config, summary: String, source: ServerCommandSource) {
+    fun applyConfig(next: Config, summary: String, source: CommandSourceStack) {
         configHolder.set(next)
         configManager.save(next)
         scheduler.updateConfig(next.schedule)
@@ -2516,18 +2516,18 @@ import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import dev.skrasek.dbhvault.DBHVaultRuntime
 import dev.skrasek.dbhvault.permissions.Permissions
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.commands.Commands
+import net.minecraft.commands.CommandSourceStack
 
 internal object RetentionSubcommand {
-    fun register(root: LiteralArgumentBuilder<ServerCommandSource>, runtime: DBHVaultRuntime) {
+    fun register(root: LiteralArgumentBuilder<CommandSourceStack>, runtime: DBHVaultRuntime) {
         root.then(
-            CommandManager.literal("retention")
+            Commands.literal("retention")
                 .requires { Permissions.check(it, Permissions.Node.RETENTION, fallbackOp = 4) }
                 .then(
-                    CommandManager.literal("keep-last")
+                    Commands.literal("keep-last")
                         .then(
-                            CommandManager.argument("count", IntegerArgumentType.integer(1, 10000))
+                            Commands.argument("count", IntegerArgumentType.integer(1, 10000))
                                 .executes { ctx ->
                                     val n = IntegerArgumentType.getInteger(ctx, "count")
                                     val current = runtime.config()
@@ -2541,9 +2541,9 @@ internal object RetentionSubcommand {
                         )
                 )
                 .then(
-                    CommandManager.literal("keep-within-days")
+                    Commands.literal("keep-within-days")
                         .then(
-                            CommandManager.argument("days", IntegerArgumentType.integer(1, 3650))
+                            Commands.argument("days", IntegerArgumentType.integer(1, 3650))
                                 .executes { ctx ->
                                     val d = IntegerArgumentType.getInteger(ctx, "days")
                                     val current = runtime.config()
@@ -2570,20 +2570,20 @@ import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import dev.skrasek.dbhvault.DBHVaultRuntime
 import dev.skrasek.dbhvault.permissions.Permissions
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.commands.Commands
+import net.minecraft.commands.CommandSourceStack
 
 internal object IdleSubcommand {
-    fun register(root: LiteralArgumentBuilder<ServerCommandSource>, runtime: DBHVaultRuntime) {
+    fun register(root: LiteralArgumentBuilder<CommandSourceStack>, runtime: DBHVaultRuntime) {
         root.then(
-            CommandManager.literal("idle")
+            Commands.literal("idle")
                 .requires { Permissions.check(it, Permissions.Node.IDLE, fallbackOp = 4) }
-                .then(CommandManager.literal("enable").executes { setEnabled(it.source, runtime, true) })
-                .then(CommandManager.literal("disable").executes { setEnabled(it.source, runtime, false) })
+                .then(Commands.literal("enable").executes { setEnabled(it.source, runtime, true) })
+                .then(Commands.literal("disable").executes { setEnabled(it.source, runtime, false) })
                 .then(
-                    CommandManager.literal("after-hours")
+                    Commands.literal("after-hours")
                         .then(
-                            CommandManager.argument("hours", IntegerArgumentType.integer(1, 720))
+                            Commands.argument("hours", IntegerArgumentType.integer(1, 720))
                                 .executes { ctx ->
                                     val h = IntegerArgumentType.getInteger(ctx, "hours")
                                     val cur = runtime.config()
@@ -2599,7 +2599,7 @@ internal object IdleSubcommand {
         )
     }
 
-    private fun setEnabled(source: ServerCommandSource, runtime: DBHVaultRuntime, enabled: Boolean): Int {
+    private fun setEnabled(source: CommandSourceStack, runtime: DBHVaultRuntime, enabled: Boolean): Int {
         val cur = runtime.config()
         runtime.applyConfig(
             cur.copy(schedule = cur.schedule.copy(idleSkip = cur.schedule.idleSkip.copy(enabled = enabled))),
@@ -2641,17 +2641,17 @@ package dev.skrasek.dbhvault.command
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import dev.skrasek.dbhvault.DBHVaultRuntime
 import dev.skrasek.dbhvault.permissions.Permissions
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.text.Text
+import net.minecraft.commands.Commands
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.network.chat.Component
 
 internal object ConfigSubcommand {
-    fun register(root: LiteralArgumentBuilder<ServerCommandSource>, runtime: DBHVaultRuntime) {
+    fun register(root: LiteralArgumentBuilder<CommandSourceStack>, runtime: DBHVaultRuntime) {
         root.then(
-            CommandManager.literal("config")
+            Commands.literal("config")
                 .requires { Permissions.check(it, Permissions.Node.CONFIG, fallbackOp = 4) }
                 .then(
-                    CommandManager.literal("reload")
+                    Commands.literal("reload")
                         .executes { ctx ->
                             val next = runtime.configManager.loadOrCreate()
                             runtime.applyConfig(next, "Config reloaded from disk", ctx.source)
@@ -2659,11 +2659,11 @@ internal object ConfigSubcommand {
                         }
                 )
                 .then(
-                    CommandManager.literal("show")
+                    Commands.literal("show")
                         .executes { ctx ->
                             val cfg = runtime.config()
-                            ctx.source.sendFeedback({
-                                Text.literal(
+                            ctx.source.sendSuccess({
+                                Component.literal(
                                     "DBHVault config:\n" +
                                         "  backupDirectory=${cfg.backupDirectory}\n" +
                                         "  schedule.enabled=${cfg.schedule.enabled}\n" +
@@ -2816,7 +2816,7 @@ object DBHVault : DedicatedServerModInitializer {
         val backupDir = Paths.get(cfg.backupDirectory)
         Files.createDirectories(backupDir)
 
-        val worldDir = server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).toAbsolutePath().normalize()
+        val worldDir = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT_DIRECTORY).toAbsolutePath().normalize()
         val archiver = ArchiverFactory.create(cfg.compression.format)
         val registry = BackupRegistry(backupDir)
         val retention = HybridRetention(cfg.retention)
@@ -2877,10 +2877,10 @@ object DBHVault : DedicatedServerModInitializer {
 
     private fun wireIdleEvents(runtime: DBHVaultRuntime) {
         ServerPlayConnectionEvents.JOIN.register { handler, _, server ->
-            runtime.idleTracker.playerCountChanged(server.playerManager.playerList.size, Instant.now())
+            runtime.idleTracker.playerCountChanged(server.playerList.players.size, Instant.now())
         }
         ServerPlayConnectionEvents.DISCONNECT.register { handler, server ->
-            runtime.idleTracker.playerCountChanged(server.playerManager.playerList.size, Instant.now())
+            runtime.idleTracker.playerCountChanged(server.playerList.players.size, Instant.now())
         }
     }
 
@@ -2893,7 +2893,7 @@ object DBHVault : DedicatedServerModInitializer {
 
     /** Synchronously hops to the server thread to perform [block]. */
     private fun <T> runOnServerThread(server: net.minecraft.server.MinecraftServer, block: () -> T): T {
-        if (server.isOnThread) return block()
+        if (server.isSameThread) return block()
         return server.submit<T>(block).get()
     }
 }
@@ -2902,7 +2902,7 @@ object DBHVault : DedicatedServerModInitializer {
 - [ ] **Step 3: Compile**
 
 Run: `./gradlew compileKotlin`
-Expected: BUILD SUCCESSFUL. If `MinecraftServer.submit`, `MinecraftServer.getSavePath`, `WorldSavePath.ROOT`, or `ServerPlayConnectionEvents` differ in 26.1, adjust to match the deobfuscated names.
+Expected: BUILD SUCCESSFUL. If `MinecraftServer.submit`, `MinecraftServer.getWorldPath`, `LevelResource.ROOT_DIRECTORY`, or `ServerPlayConnectionEvents` differ in 26.1, adjust to match the deobfuscated names.
 
 - [ ] **Step 4: Run all tests**
 
@@ -2946,7 +2946,7 @@ git commit -m "wire DBHVault: lifecycle, scheduler, commands, idle tracking"
 **1. Spec coverage:**
 - ✅ Scheduled backups every N hours (Task 12)
 - ✅ Manual backup with optional name (Task 16)
-- ✅ World corruption-safe via flush + savingDisabled (Task 9)
+- ✅ World corruption-safe via flush + noSave (Task 9)
 - ✅ Asynchronous via Dispatchers.IO + SupervisorJob (Task 20)
 - ✅ Hybrid retention (Task 8)
 - ✅ Pinned named backups never pruned (Task 8)
@@ -2974,13 +2974,13 @@ git commit -m "wire DBHVault: lifecycle, scheduler, commands, idle tracking"
 ## Execution Notes
 
 - **APIs to verify against 26.1 deobfuscated source** (any rename here means a one-line fix):
-  `MinecraftServer.saveAll`, `ServerWorld.savingDisabled`, `MinecraftServer.worlds`,
-  `MinecraftServer.execute`, `MinecraftServer.submit`, `MinecraftServer.isOnThread`,
-  `MinecraftServer.getSavePath`, `WorldSavePath.ROOT`, `MinecraftServer.playerManager`,
-  `PlayerManager.playerList`, `PlayerManager.isOperator`, `ServerPlayerEntity.sendMessage`,
+  `MinecraftServer.saveAllChunks`, `ServerLevel.noSave`, `MinecraftServer.allLevels`,
+  `MinecraftServer.execute`, `MinecraftServer.submit`, `MinecraftServer.isSameThread`,
+  `MinecraftServer.getWorldPath`, `LevelResource.ROOT_DIRECTORY`, `MinecraftServer.playerList`,
+  `PlayerList.players`, `PlayerList.isOp`, `ServerPlayer.sendMessage`,
   `ServerPlayConnectionEvents.JOIN/DISCONNECT`, `ServerLifecycleEvents.SERVER_STARTED/STOPPING`,
-  `CommandRegistrationCallback.EVENT`, `CommandManager.literal/argument`,
-  `ServerCommandSource.sendFeedback`.
+  `CommandRegistrationCallback.EVENT`, `Commands.literal/argument`,
+  `CommandSourceStack.sendSuccess`.
 
 - **First-run output:** the first launch will write `run/config/dbhvault.toml` with defaults and create `run/backups/`. Subsequent launches read the file as-is.
 
