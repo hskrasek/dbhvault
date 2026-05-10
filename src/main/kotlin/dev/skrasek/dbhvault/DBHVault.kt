@@ -9,8 +9,10 @@ import dev.skrasek.dbhvault.backup.storage.HybridRetention
 import dev.skrasek.dbhvault.command.VaultCommand
 import dev.skrasek.dbhvault.config.ConfigManager
 import dev.skrasek.dbhvault.notify.Notifier
+import dev.skrasek.dbhvault.observability.Telemetry
 import dev.skrasek.dbhvault.schedule.BackupScheduler
 import dev.skrasek.dbhvault.schedule.IdleTracker
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,7 +33,7 @@ import java.util.concurrent.atomic.AtomicReference
 object DBHVault : DedicatedServerModInitializer {
     const val MOD_ID = "dbhvault"
 
-    private val logger = LoggerFactory.getLogger(MOD_ID)
+    private val logger = LoggerFactory.getLogger(DBHVault::class.java)
 
     /**
      * Holds the live runtime so callbacks captured before bootstrap (the
@@ -42,6 +44,7 @@ object DBHVault : DedicatedServerModInitializer {
     private val runtimeRef = AtomicReference<DBHVaultRuntime?>(null)
 
     override fun onInitializeServer() {
+        Telemetry.init()
         logger.info("Opening the vault for {}", MOD_ID)
 
         // Bootstrap during SERVER_STARTING — this fires *before* MinecraftServer.initServer(),
@@ -55,6 +58,7 @@ object DBHVault : DedicatedServerModInitializer {
                 runtime.scheduler.stop()
                 runtime.scope.cancel()
             }
+            Telemetry.shutdown()
         }
 
         ServerPlayConnectionEvents.JOIN.register { _, _, server ->
@@ -74,6 +78,7 @@ object DBHVault : DedicatedServerModInitializer {
     private fun bootstrap(server: MinecraftServer) {
         val configManager = ConfigManager(Paths.get("config", "dbhvault.toml"))
         val cfg = configManager.loadOrCreate()
+        Telemetry.refreshConfigContext(cfg)
 
         val worldDir = server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize()
         val backupDir = Paths.get(cfg.backupDirectory).toAbsolutePath().normalize()
@@ -94,7 +99,11 @@ object DBHVault : DedicatedServerModInitializer {
         val retention = HybridRetention(cfg.retention)
         val idleTracker = IdleTracker(initialActivity = Instant.now())
         val notifier = Notifier(server)
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val scope = CoroutineScope(
+            SupervisorJob() +
+                Dispatchers.IO +
+                CoroutineExceptionHandler { _, t -> Telemetry.captureException(t) },
+        )
 
         val orchestrator = BackupOrchestrator(
             config = cfg,
@@ -168,7 +177,10 @@ object DBHVault : DedicatedServerModInitializer {
             "Backup complete: ${result.file.fileName} " +
                 "(${result.sizeBytes / 1024 / 1024} MiB in ${result.duration.toSeconds()}s)"
         is BackupResult.Skipped -> "Scheduled backup skipped: ${result.reason}"
-        is BackupResult.Failed -> "Scheduled backup failed: ${result.cause.message}"
+        is BackupResult.Failed -> {
+            Telemetry.captureBackupFailure(result)
+            "Scheduled backup failed: ${result.cause.message}"
+        }
     }
 
     /**
