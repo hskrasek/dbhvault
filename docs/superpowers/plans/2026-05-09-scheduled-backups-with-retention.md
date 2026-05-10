@@ -1067,7 +1067,7 @@ git commit -m "add TarZstdArchiver and ArchiverFactory with zstd fallback"
 - Create: `src/main/kotlin/dev/skrasek/dbhvault/backup/storage/BackupRegistry.kt`
 - Create: `src/test/kotlin/dev/skrasek/dbhvault/backup/storage/BackupRegistryTest.kt`
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup.storage
@@ -1130,12 +1130,12 @@ class BackupRegistryTest {
 }
 ```
 
-- [ ] **Step 2: Verify failure**
+- [x] **Step 2: Verify failure**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.backup.storage.BackupRegistryTest`
 Expected: COMPILATION ERROR.
 
-- [ ] **Step 3: Implement `BackupRegistry.kt`**
+- [x] **Step 3: Implement `BackupRegistry.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup.storage
@@ -1173,12 +1173,12 @@ class BackupRegistry(private val backupDir: Path) {
 }
 ```
 
-- [ ] **Step 4: Verify pass**
+- [x] **Step 4: Verify pass**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.backup.storage.BackupRegistryTest`
 Expected: 3 tests, 0 failures.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/backup/storage/BackupRegistry.kt \
@@ -1195,7 +1195,7 @@ git commit -m "add BackupRegistry"
 - Create: `src/main/kotlin/dev/skrasek/dbhvault/backup/storage/HybridRetention.kt`
 - Create: `src/test/kotlin/dev/skrasek/dbhvault/backup/storage/HybridRetentionTest.kt`
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup.storage
@@ -1264,12 +1264,12 @@ class HybridRetentionTest {
 }
 ```
 
-- [ ] **Step 2: Verify failure**
+- [x] **Step 2: Verify failure**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.backup.storage.HybridRetentionTest`
 Expected: COMPILATION ERROR.
 
-- [ ] **Step 3: Implement `RetentionPolicy.kt`**
+- [x] **Step 3: Implement `RetentionPolicy.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup.storage
@@ -1286,7 +1286,7 @@ interface RetentionPolicy {
 }
 ```
 
-- [ ] **Step 4: Implement `HybridRetention.kt`**
+- [x] **Step 4: Implement `HybridRetention.kt`**
 
 ```kotlin
 package dev.skrasek.dbhvault.backup.storage
@@ -1312,12 +1312,12 @@ class HybridRetention(private val config: RetentionConfig) : RetentionPolicy {
 }
 ```
 
-- [ ] **Step 5: Verify pass**
+- [x] **Step 5: Verify pass**
 
 Run: `./gradlew test --tests dev.skrasek.dbhvault.backup.storage.HybridRetentionTest`
 Expected: 4 tests, 0 failures.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/backup/storage/RetentionPolicy.kt \
