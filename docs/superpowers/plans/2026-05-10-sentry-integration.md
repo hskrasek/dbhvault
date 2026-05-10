@@ -79,7 +79,7 @@ src/main/kotlin/dev/skrasek/dbhvault/
 
 ### Steps
 
-- [ ] **Step 1: Create `local.properties.example`**
+- [x] **Step 1: Create `local.properties.example`**
 
 Create `/Users/hskrasek/Documents/Projects/Minecraft/dbhv-backups/local.properties.example` with:
 
@@ -92,7 +92,7 @@ Create `/Users/hskrasek/Documents/Projects/Minecraft/dbhv-backups/local.properti
 sentry.dsn=
 ```
 
-- [ ] **Step 2: Add `local.properties` to `.gitignore`**
+- [x] **Step 2: Add `local.properties` to `.gitignore`**
 
 Append to the existing `.gitignore` (after the `# Local env` block):
 
@@ -101,7 +101,7 @@ Append to the existing `.gitignore` (after the `# Local env` block):
 local.properties
 ```
 
-- [ ] **Step 3: Pin Sentry SDK version in `gradle.properties`**
+- [x] **Step 3: Pin Sentry SDK version in `gradle.properties`**
 
 Add to `gradle.properties` under a new heading (place it near the existing `# Compression` / `# Config` headings to match the file's style):
 
@@ -112,7 +112,7 @@ sentry_version=8.0.0
 
 > If a newer stable `8.x.y` is available at impl time, prefer that; verify on https://central.sonatype.com/artifact/io.sentry/sentry. Stay on 8.x to avoid breaking-change surprises. Per the `CLAUDE.md` convention, the version literal lives only here, never in `build.gradle.kts`.
 
-- [ ] **Step 4: Add the `sentry_version` accessor and Sentry dependency in `build.gradle.kts`**
+- [x] **Step 4: Add the `sentry_version` accessor and Sentry dependency in `build.gradle.kts`**
 
 In the existing `val ... = property(...) as String` block (after `val mockkVersion`), add:
 
@@ -126,7 +126,7 @@ In the `dependencies { }` block, after the existing `implementation("org.jetbrai
 implementation("io.sentry:sentry-log4j2:$sentryVersion")
 ```
 
-- [ ] **Step 5: Read `local.properties` at configuration time**
+- [x] **Step 5: Read `local.properties` at configuration time**
 
 Above the `tasks.processResources { ... }` block in `build.gradle.kts`, add:
 
@@ -141,7 +141,7 @@ val sentryDsn: String = rootProject.file("local.properties")
     ?: ""
 ```
 
-- [ ] **Step 6: Extend `processResources.expand` to template the DSN**
+- [x] **Step 6: Extend `processResources.expand` to template the DSN**
 
 Replace the existing `tasks.processResources` block with:
 
@@ -163,7 +163,7 @@ tasks.processResources {
 }
 ```
 
-- [ ] **Step 7: Create the build-properties resource template**
+- [x] **Step 7: Create the build-properties resource template**
 
 Create `/Users/hskrasek/Documents/Projects/Minecraft/dbhv-backups/src/main/resources/dbhvault.build.properties` with:
 
@@ -172,7 +172,7 @@ mod.version=${version}
 sentry.dsn=${sentry_dsn}
 ```
 
-- [ ] **Step 8: Verify the build with no DSN configured**
+- [x] **Step 8: Verify the build with no DSN configured**
 
 Run: `./gradlew clean build -x test`
 
@@ -192,7 +192,7 @@ sentry.dsn=
 
 (The `sentry.dsn=` line is empty because no `local.properties` exists yet — that's the dev-build no-op path.)
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add .gitignore local.properties.example gradle.properties build.gradle.kts src/main/resources/dbhvault.build.properties
@@ -221,7 +221,7 @@ EOF
 
 ### Steps
 
-- [ ] **Step 1: Create the `Telemetry.kt` compile stub**
+- [x] **Step 1: Create the `Telemetry.kt` compile stub**
 
 Create `/Users/hskrasek/Documents/Projects/Minecraft/dbhv-backups/src/main/kotlin/dev/skrasek/dbhvault/observability/Telemetry.kt` with the following — this is **stub-only**: every method body is `TODO("user implements...")`. The user will replace these bodies in Task 3.
 
@@ -307,7 +307,7 @@ object NoOpSink : TelemetrySink {
 }
 ```
 
-- [ ] **Step 2: Create `TelemetryTest.kt`**
+- [x] **Step 2: Create `TelemetryTest.kt`**
 
 Create `/Users/hskrasek/Documents/Projects/Minecraft/dbhv-backups/src/test/kotlin/dev/skrasek/dbhvault/observability/TelemetryTest.kt` with:
 
@@ -469,7 +469,7 @@ internal class RecordingSink : TelemetrySink {
 }
 ```
 
-- [ ] **Step 3: Run the tests; verify they fail in the expected ways**
+- [x] **Step 3: Run the tests; verify they fail in the expected ways**
 
 Run: `./gradlew test --tests "dev.skrasek.dbhvault.observability.TelemetryTest" --info`
 
@@ -490,7 +490,7 @@ Expected results:
 
 If any test in the upper "delegation" group fails, the stub is wrong — fix it before handing off. If the lower `initInternal` group passes, the stub is doing too much — also fix.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/observability/Telemetry.kt src/test/kotlin/dev/skrasek/dbhvault/observability/TelemetryTest.kt
@@ -506,7 +506,7 @@ EOF
 )"
 ```
 
-- [ ] **Step 5: Hand off**
+- [x] **Step 5: Hand off**
 
 Output the following message and stop:
 
@@ -583,7 +583,7 @@ When done, push to the branch and notify Claude to continue with Task 4.
 
 ### Steps
 
-- [ ] **Step 1: Switch `DBHVault`'s logger to a class-based name**
+- [x] **Step 1: Switch `DBHVault`'s logger to a class-based name**
 
 In `DBHVault.kt`, replace line 34:
 
@@ -599,7 +599,7 @@ private val logger = LoggerFactory.getLogger(DBHVault::class.java)
 
 > Why: the Log4j2 appender attaches to the `dev.skrasek.dbhvault` logger config. A logger named `"dbhvault"` lives under the *root* logger, not the `dev.skrasek.dbhvault` subtree, and would be missed by the appender filter.
 
-- [ ] **Step 2: Add `Telemetry.init()` at the top of `onInitializeServer`**
+- [x] **Step 2: Add `Telemetry.init()` at the top of `onInitializeServer`**
 
 Add the import:
 
@@ -616,7 +616,7 @@ override fun onInitializeServer() {
     // ...rest unchanged for now
 ```
 
-- [ ] **Step 3: Add `Telemetry.shutdown()` to the `SERVER_STOPPING` handler**
+- [x] **Step 3: Add `Telemetry.shutdown()` to the `SERVER_STOPPING` handler**
 
 Replace the existing `SERVER_STOPPING` registration with:
 
@@ -630,7 +630,7 @@ ServerLifecycleEvents.SERVER_STOPPING.register { _ ->
 }
 ```
 
-- [ ] **Step 4: Install a `CoroutineExceptionHandler` on the IO scope**
+- [x] **Step 4: Install a `CoroutineExceptionHandler` on the IO scope**
 
 Add the import:
 
@@ -656,7 +656,7 @@ val scope = CoroutineScope(
 
 > Why: `SupervisorJob` keeps sibling coroutines alive when one throws, but the failed coroutine's exception goes to the handler if present, otherwise to `Thread.uncaughtExceptionHandler` — which Minecraft owns and may swallow. Without this handler, scheduled-backup-coroutine failures would vanish from Sentry.
 
-- [ ] **Step 5: Call `Telemetry.refreshConfigContext` after the initial config load**
+- [x] **Step 5: Call `Telemetry.refreshConfigContext` after the initial config load**
 
 In `bootstrap(server)`, add this line *immediately after* `val cfg = configManager.loadOrCreate()`:
 
@@ -664,7 +664,7 @@ In `bootstrap(server)`, add this line *immediately after* `val cfg = configManag
 Telemetry.refreshConfigContext(cfg)
 ```
 
-- [ ] **Step 6: Capture `BackupResult.Failed` in `describe()`**
+- [x] **Step 6: Capture `BackupResult.Failed` in `describe()`**
 
 Replace the existing `describe` function (the `BackupResult.Failed` arm currently just formats a message) with:
 
@@ -683,7 +683,7 @@ private fun describe(result: BackupResult): String = when (result) {
 
 > Why this site, not inside the orchestrator: `BackupOrchestrator` is reusable and shouldn't depend on `Telemetry`. The entrypoint owns the user-facing wiring (notifier + telemetry); orchestrator just returns a result.
 
-- [ ] **Step 7: Call `refreshConfigContext` from `DBHVaultRuntime.applyConfig`**
+- [x] **Step 7: Call `refreshConfigContext` from `DBHVaultRuntime.applyConfig`**
 
 In `DBHVaultRuntime.kt`, add the import:
 
@@ -705,7 +705,7 @@ fun applyConfig(next: Config, summary: String, source: CommandSourceStack) {
 
 > Order matters: `refreshConfigContext` happens *before* `notifier.send` so any error during the broadcast (rare, but possible) is captured under the *new* config — that's the config that produced the error.
 
-- [ ] **Step 8: Run the full test suite**
+- [x] **Step 8: Run the full test suite**
 
 Run: `./gradlew test`
 
@@ -715,7 +715,7 @@ If anything regresses, do not skip — diagnose. Likely culprits:
 - Logger name change broke a test that asserted on logger output by name (unlikely; existing tests don't assert on logger names).
 - Missing import for `CoroutineExceptionHandler` (compile error).
 
-- [ ] **Step 9: Build the jar to confirm packaging is intact**
+- [x] **Step 9: Build the jar to confirm packaging is intact**
 
 Run: `./gradlew build`
 
@@ -727,7 +727,7 @@ unzip -p build/libs/dbhvault-1.0.0.jar dbhvault.build.properties
 
 Expected: `mod.version=1.0.0` and `sentry.dsn=` (still blank — no `local.properties` configured).
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/main/kotlin/dev/skrasek/dbhvault/DBHVault.kt src/main/kotlin/dev/skrasek/dbhvault/DBHVaultRuntime.kt
@@ -756,7 +756,7 @@ EOF
 
 ### Steps
 
-- [ ] **Step 1: Start dev server with no DSN configured**
+- [x] **Step 1: Start dev server with no DSN configured**
 
 Confirm `local.properties` does not exist (or its `sentry.dsn` is blank):
 
@@ -777,7 +777,7 @@ Expected console output (early in startup):
 
 Stop the server with `/stop` from the in-game console (or Ctrl-C the gradle process).
 
-- [ ] **Step 2: Configure a real DSN and rebuild**
+- [x] **Step 2: Configure a real DSN and rebuild**
 
 Copy the example file:
 
@@ -801,7 +801,7 @@ unzip -p build/libs/dbhvault-1.0.0.jar dbhvault.build.properties
 
 Expected: `sentry.dsn=https://...@o....ingest.sentry.io/...`
 
-- [ ] **Step 3: Launch dev server with DSN; confirm no startup error**
+- [x] **Step 3: Launch dev server with DSN; confirm no startup error**
 
 Run:
 
@@ -814,7 +814,7 @@ Expected:
 - No stack trace involving Sentry init.
 - (Optional, depending on the user's logging in Task 3) An INFO log saying telemetry is initialized with release `dbhvault@1.0.0`.
 
-- [ ] **Step 4: Trigger a controllable failure to verify event delivery**
+- [ ] **Step 4: Trigger a controllable failure to verify event delivery** _(deferred to user — requires interactive Minecraft server commands; the unit tests cover the delegation chain, and Sentry API auth + DSN flow are independently verified by the source-bundle upload)_
 
 In the running dev server's console, run:
 
@@ -837,7 +837,7 @@ If the Sentry dashboard does not receive the event:
 - Check the dev server's logs for an `io.sentry` WARN about transport failure (network issue).
 - Check that `Sentry.captureException` was actually invoked — drop a temporary `println` or `logger.info` in `describe()`'s Failed arm to confirm the call is reached.
 
-- [ ] **Step 5: Restore dev defaults**
+- [x] **Step 5: Restore dev defaults**
 
 Stop the server. Reset `local.properties` so subsequent `runServer` invocations are silent again:
 
@@ -848,7 +848,7 @@ echo "sentry.dsn=" > local.properties
 
 Expected: jar's `dbhvault.build.properties` has a blank `sentry.dsn=` again.
 
-- [ ] **Step 6: Mark Task 5 complete and check the plan in**
+- [x] **Step 6: Mark Task 5 complete and check the plan in**
 
 ```bash
 # Edit this plan file: change all `- [ ]` for Tasks 1, 2, 4, 5 to `- [x]`.
