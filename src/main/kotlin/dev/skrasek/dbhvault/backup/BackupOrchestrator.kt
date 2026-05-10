@@ -5,8 +5,11 @@ import dev.skrasek.dbhvault.backup.storage.BackupEntry
 import dev.skrasek.dbhvault.backup.storage.BackupRegistry
 import dev.skrasek.dbhvault.backup.storage.RetentionPolicy
 import dev.skrasek.dbhvault.config.Config
+import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.time.Clock
+import java.time.Duration
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Coordinates a single backup attempt: lock → freeze → archive → thaw → retention → prune.
@@ -51,6 +54,54 @@ class BackupOrchestrator(
     private val freeze: () -> AutoCloseable,
     private val prune: (List<BackupEntry>) -> Unit,
 ) {
-    fun runIfFree(request: BackupRequest): BackupResult =
-        TODO("Implement: lock + freeze → archive → thaw → registry → retention → prune (see KDoc)")
+    private val logger = LoggerFactory.getLogger(BackupOrchestrator::class.java)
+    private val running = AtomicBoolean(false)
+
+    fun runIfFree(request: BackupRequest): BackupResult {
+        if (!running.compareAndSet(false, true)) {
+            return BackupResult.Skipped(BackupResult.SkipReason.ALREADY_RUNNING)
+        }
+
+        return try {
+            execute(request)
+        } finally {
+            running.set(false)
+        }
+    }
+
+    private fun execute(request: BackupRequest): BackupResult {
+        val started = clock.instant()
+        val name = (request as? BackupRequest.Manual)?.name
+        val pinned = name != null
+        val fileName = BackupNaming.fileName(started, name, config.compression.format)
+        val destFile = backupDir.resolve(fileName)
+
+        backupDir.toFile().mkdirs()
+
+        return try {
+            val token = freeze()
+            try {
+                val sizeBytes = archiver.archive(worldDir, destFile, config.compression.level)
+                val finished = clock.instant()
+                val all = registry.list()
+                val decision = retention.classify(all, finished)
+
+                prune(decision.prune)
+
+                BackupResult.Success(
+                    file = destFile,
+                    sizeBytes = sizeBytes,
+                    timestamp = started,
+                    duration = Duration.between(started, finished),
+                    pinned = pinned,
+                )
+            } finally {
+                runCatching { token.close() }.onFailure { logger.error("thaw failed", it) }
+            }
+        } catch (t: Throwable) {
+            logger.error("Backup failed", t)
+            runCatching { destFile.toFile().delete() }
+            BackupResult.Failed(t)
+        }
+    }
 }
