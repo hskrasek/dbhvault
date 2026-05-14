@@ -6,6 +6,7 @@ import dev.skrasek.dbhvault.DBHVaultRuntime
 import dev.skrasek.dbhvault.backup.BackupRequest
 import dev.skrasek.dbhvault.backup.BackupResult
 import dev.skrasek.dbhvault.permissions.Permissions
+import dev.skrasek.dbhvault.util.humanBytes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import net.minecraft.commands.CommandSourceStack
@@ -32,7 +33,7 @@ internal object BackupSubcommand {
             val msg = when (result) {
                 is BackupResult.Success ->
                     "Backup complete: ${result.file.fileName} " +
-                        "(${result.sizeBytes / 1024 / 1024} MiB in ${result.duration.toSeconds()}s)"
+                        "(${humanBytes(result.sizeBytes)} in ${result.duration.toSeconds()}s)"
                 is BackupResult.Skipped -> "Backup skipped: ${result.reason}"
                 is BackupResult.Failed -> "Backup failed: ${result.cause.message}"
             }
