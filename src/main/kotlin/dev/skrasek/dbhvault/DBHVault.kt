@@ -12,6 +12,7 @@ import dev.skrasek.dbhvault.notify.Notifier
 import dev.skrasek.dbhvault.observability.Telemetry
 import dev.skrasek.dbhvault.schedule.BackupScheduler
 import dev.skrasek.dbhvault.schedule.IdleTracker
+import dev.skrasek.dbhvault.util.humanBytes
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -175,7 +176,7 @@ object DBHVault : DedicatedServerModInitializer {
     private fun describe(result: BackupResult): String = when (result) {
         is BackupResult.Success ->
             "Backup complete: ${result.file.fileName} " +
-                "(${result.sizeBytes / 1024 / 1024} MiB in ${result.duration.toSeconds()}s)"
+                "(${humanBytes(result.sizeBytes)} in ${result.duration.toSeconds()}s)"
         is BackupResult.Skipped -> "Scheduled backup skipped: ${result.reason}"
         is BackupResult.Failed -> {
             Telemetry.captureBackupFailure(result)

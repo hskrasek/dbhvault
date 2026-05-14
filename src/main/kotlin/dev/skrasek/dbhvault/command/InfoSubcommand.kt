@@ -3,6 +3,7 @@ package dev.skrasek.dbhvault.command
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import dev.skrasek.dbhvault.DBHVaultRuntime
 import dev.skrasek.dbhvault.permissions.Permissions
+import dev.skrasek.dbhvault.util.humanBytes
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.network.chat.Component
@@ -19,7 +20,7 @@ object InfoSubcommand {
                     val recent = runtime.registry.mostRecent()
                     val recentLine = recent?.let { entry ->
                         val ago = Duration.between(entry.metadata.timestamp, Instant.now()).toHours()
-                        "Last backup: ${entry.path.fileName} (${entry.sizeBytes / 1024 / 1024} MiB, ${ago}h ago)"
+                        "Last backup: ${entry.path.fileName} (${humanBytes(entry.sizeBytes)}, ${ago}h ago)"
                     } ?: "Last backup: (none)"
                     val sched = if (cfg.schedule.enabled) "every ${cfg.schedule.intervalHours}h" else "disabled"
                     val ret = "keepLast=${cfg.retention.keepLast}, keepWithinDays=${cfg.retention.keepWithinDays}"

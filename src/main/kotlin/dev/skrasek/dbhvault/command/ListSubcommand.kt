@@ -3,6 +3,7 @@ package dev.skrasek.dbhvault.command
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import dev.skrasek.dbhvault.DBHVaultRuntime
 import dev.skrasek.dbhvault.permissions.Permissions
+import dev.skrasek.dbhvault.util.humanBytes
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.network.chat.Component
@@ -25,8 +26,7 @@ internal object ListSubcommand {
                             appendLine("DBHVault — ${entries.size} backup(s):")
                             for (e in entries) {
                                 val pin = if (e.metadata.isPinned) " [pinned: ${e.metadata.name}]" else ""
-                                val sizeMiB = e.sizeBytes / 1024 / 1024
-                                appendLine("  ${FORMAT.format(e.metadata.timestamp)}  ${sizeMiB} MiB  ${e.path.fileName}$pin")
+                                appendLine("  ${FORMAT.format(e.metadata.timestamp)}  ${humanBytes(e.sizeBytes)}  ${e.path.fileName}$pin")
                             }
                         }.trimEnd()
                         ctx.source.sendSuccess({ Component.literal(lines) }, false)
