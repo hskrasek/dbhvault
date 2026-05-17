@@ -6,7 +6,7 @@ import dev.skrasek.dbhvault.DBHVaultRuntime
 import dev.skrasek.dbhvault.backup.BackupRequest
 import dev.skrasek.dbhvault.backup.BackupResult
 import dev.skrasek.dbhvault.permissions.Permissions
-import dev.skrasek.dbhvault.util.humanBytes
+import dev.skrasek.dbhvault.util.Messages
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import net.minecraft.commands.CommandSourceStack
@@ -30,12 +30,13 @@ internal object BackupSubcommand {
         source.sendSuccess({ Component.literal("Starting backup${if (name != null) " '$name'" else ""}...") }, false)
         runtime.scope.launch(Dispatchers.IO) {
             val result = runtime.orchestrator.runIfFree(BackupRequest.Manual(name))
-            val msg = when (result) {
+            val msg: Component = when (result) {
                 is BackupResult.Success ->
-                    "Backup complete: ${result.file.fileName} " +
-                        "(${humanBytes(result.sizeBytes)} in ${result.duration.toSeconds()}s)"
-                is BackupResult.Skipped -> "Backup skipped: ${result.reason}"
-                is BackupResult.Failed -> "Backup failed: ${result.cause.message}"
+                    Component.literal("Backup complete: ${result.file.fileName} (")
+                        .append(Messages.size(result.sizeBytes))
+                        .append(Component.literal(" in ${result.duration.toSeconds()}s)"))
+                is BackupResult.Skipped -> Component.literal("Backup skipped: ${result.reason}")
+                is BackupResult.Failed -> Component.literal("Backup failed: ${result.cause.message}")
             }
             runtime.notifier.send(runtime.config().notifications.backupEvents, msg)
         }

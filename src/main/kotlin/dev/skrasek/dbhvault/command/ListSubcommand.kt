@@ -3,7 +3,7 @@ package dev.skrasek.dbhvault.command
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import dev.skrasek.dbhvault.DBHVaultRuntime
 import dev.skrasek.dbhvault.permissions.Permissions
-import dev.skrasek.dbhvault.util.humanBytes
+import dev.skrasek.dbhvault.util.Messages
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.network.chat.Component
@@ -22,14 +22,16 @@ internal object ListSubcommand {
                     if (entries.isEmpty()) {
                         ctx.source.sendSuccess({ Component.literal("No backups found.") }, false)
                     } else {
-                        val lines = buildString {
-                            appendLine("DBHVault — ${entries.size} backup(s):")
-                            for (e in entries) {
-                                val pin = if (e.metadata.isPinned) " [pinned: ${e.metadata.name}]" else ""
-                                appendLine("  ${FORMAT.format(e.metadata.timestamp)}  ${humanBytes(e.sizeBytes)}  ${e.path.fileName}$pin")
-                            }
-                        }.trimEnd()
-                        ctx.source.sendSuccess({ Component.literal(lines) }, false)
+                        val body = Component.empty()
+                            .append(Messages.brand())
+                            .append(Component.literal(" — ${entries.size} backup(s):"))
+                        for (e in entries) {
+                            val pin = if (e.metadata.isPinned) " [pinned: ${e.metadata.name}]" else ""
+                            body.append(Component.literal("\n  ${FORMAT.format(e.metadata.timestamp)}  "))
+                                .append(Messages.size(e.sizeBytes))
+                                .append(Component.literal("  ${e.path.fileName}$pin"))
+                        }
+                        ctx.source.sendSuccess({ body }, false)
                     }
                     1
                 }
