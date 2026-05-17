@@ -1,6 +1,7 @@
 package dev.skrasek.dbhvault.notify
 
 import dev.skrasek.dbhvault.config.BroadcastScope
+import dev.skrasek.dbhvault.util.Messages
 import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
 import org.slf4j.LoggerFactory
@@ -24,12 +25,21 @@ import org.slf4j.LoggerFactory
 class Notifier(private val server: MinecraftServer) {
     private val logger = LoggerFactory.getLogger(Notifier::class.java)
 
+    /** Convenience overload for plain-text messages. */
     fun send(scope: BroadcastScope, message: String) {
-        // Always log — operators grep the server log when chat history is unreliable.
-        logger.info("[DBHVault] {}", message)
+        send(scope, Component.literal(message))
+    }
+
+    fun send(scope: BroadcastScope, message: Component) {
+        // Always log — operators grep the server log when chat history is
+        // unreliable. Strip styling for the log line.
+        logger.info("[DBHVault] {}", message.string)
         if (scope == BroadcastScope.LOG_ONLY) return
 
-        val text = Component.literal("[DBHVault] $message")
+        val text = Component.empty()
+            .append(Messages.brandPrefix())
+            .append(Component.literal(" "))
+            .append(message)
         server.execute {
             val playerList = server.playerList
             for (player in playerList.players) {

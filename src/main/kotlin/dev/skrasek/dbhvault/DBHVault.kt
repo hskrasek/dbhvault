@@ -12,7 +12,7 @@ import dev.skrasek.dbhvault.notify.Notifier
 import dev.skrasek.dbhvault.observability.Telemetry
 import dev.skrasek.dbhvault.schedule.BackupScheduler
 import dev.skrasek.dbhvault.schedule.IdleTracker
-import dev.skrasek.dbhvault.util.humanBytes
+import dev.skrasek.dbhvault.util.Messages
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +21,7 @@ import kotlinx.coroutines.cancel
 import net.fabricmc.api.DedicatedServerModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
+import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.storage.LevelResource
 import org.slf4j.LoggerFactory
@@ -173,14 +174,15 @@ object DBHVault : DedicatedServerModInitializer {
         )
     }
 
-    private fun describe(result: BackupResult): String = when (result) {
+    private fun describe(result: BackupResult): Component = when (result) {
         is BackupResult.Success ->
-            "Backup complete: ${result.file.fileName} " +
-                "(${humanBytes(result.sizeBytes)} in ${result.duration.toSeconds()}s)"
-        is BackupResult.Skipped -> "Scheduled backup skipped: ${result.reason}"
+            Component.literal("Backup complete: ${result.file.fileName} (")
+                .append(Messages.size(result.sizeBytes))
+                .append(Component.literal(" in ${result.duration.toSeconds()}s)"))
+        is BackupResult.Skipped -> Component.literal("Scheduled backup skipped: ${result.reason}")
         is BackupResult.Failed -> {
             Telemetry.captureBackupFailure(result)
-            "Scheduled backup failed: ${result.cause.message}"
+            Component.literal("Scheduled backup failed: ${result.cause.message}")
         }
     }
 

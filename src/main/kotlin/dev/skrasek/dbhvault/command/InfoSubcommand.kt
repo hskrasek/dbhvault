@@ -3,7 +3,7 @@ package dev.skrasek.dbhvault.command
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import dev.skrasek.dbhvault.DBHVaultRuntime
 import dev.skrasek.dbhvault.permissions.Permissions
-import dev.skrasek.dbhvault.util.humanBytes
+import dev.skrasek.dbhvault.util.Messages
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.network.chat.Component
@@ -18,15 +18,20 @@ object InfoSubcommand {
                 .executes { ctx ->
                     val cfg = runtime.config()
                     val recent = runtime.registry.mostRecent()
-                    val recentLine = recent?.let { entry ->
+                    val recentLine: Component = recent?.let { entry ->
                         val ago = Duration.between(entry.metadata.timestamp, Instant.now()).toHours()
-                        "Last backup: ${entry.path.fileName} (${humanBytes(entry.sizeBytes)}, ${ago}h ago)"
-                    } ?: "Last backup: (none)"
+                        Component.literal("Last backup: ${entry.path.fileName} (")
+                            .append(Messages.size(entry.sizeBytes))
+                            .append(Component.literal(", ${ago}h ago)"))
+                    } ?: Component.literal("Last backup: (none)")
                     val sched = if (cfg.schedule.enabled) "every ${cfg.schedule.intervalHours}h" else "disabled"
                     val ret = "keepLast=${cfg.retention.keepLast}, keepWithinDays=${cfg.retention.keepWithinDays}"
                     val idle = if (cfg.schedule.idleSkip.enabled) "after ${cfg.schedule.idleSkip.afterIdleHours}h idle" else "disabled"
                     ctx.source.sendSuccess({
-                        Component.literal("DBHVault — schedule: $sched | retention: $ret | idle-skip: $idle\n$recentLine")
+                        Component.empty()
+                            .append(Messages.brand())
+                            .append(Component.literal(" — schedule: $sched | retention: $ret | idle-skip: $idle\n"))
+                            .append(recentLine)
                     }, false)
                     1
                 }
