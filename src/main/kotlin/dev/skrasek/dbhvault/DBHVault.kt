@@ -98,7 +98,12 @@ object DBHVault : DedicatedServerModInitializer {
         }
 
         val registry = BackupRegistry(backupDir)
-        val retention = HybridRetention(cfg.retention)
+        // Provider, not snapshot: reads the live runtime config so `/vault retention`
+        // edits prune correctly on the next backup without a restart. (`cfg.retention`
+        // is only the fallback for the startup window before runtimeRef is set.)
+        // ponytail: cfg.compression below is still a startup snapshot — a runtime
+        // format/level change won't take effect until restart. Not reported, left as-is.
+        val retention = HybridRetention { runtimeRef.get()?.config()?.retention ?: cfg.retention }
         val idleTracker = IdleTracker(initialActivity = Instant.now())
         val notifier = Notifier(server)
         val scope = CoroutineScope(

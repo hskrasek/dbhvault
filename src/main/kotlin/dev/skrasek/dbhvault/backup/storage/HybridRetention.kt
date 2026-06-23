@@ -15,9 +15,17 @@ import java.time.Instant
  * are prefixes of the newest-first sort). Pinned entries are *always* kept,
  * regardless of count or age, and they don't consume the keepLast quota
  * (the count-based pool is computed from the *unpinned* entries only).
+ *
+ * [config] is a *provider*, resolved fresh on every [classify] call, not a
+ * snapshot. This is what makes runtime `/vault retention` edits take effect on
+ * the very next backup: the orchestrator builds this policy once at startup,
+ * but each prune reads the current config. Snapshotting here was the bug behind
+ * "I set keepLast=5 but the backups folder grows until the disk fills" — the
+ * running pruner kept using the bootstrap defaults.
  */
-class HybridRetention(private val config: RetentionConfig) : RetentionPolicy {
+class HybridRetention(private val config: () -> RetentionConfig) : RetentionPolicy {
     override fun classify(entries: List<BackupEntry>, now: Instant): RetentionDecision {
+        val config = config()
         val (pinned, unpinned) = entries.partition { it.metadata.isPinned }
         val sortedNewestFirst = unpinned.sortedByDescending { it.metadata.timestamp }
 

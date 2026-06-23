@@ -18,7 +18,7 @@ class HybridRetentionTest {
 
     @Test
     fun `empty input produces empty decision`() {
-        val policy = HybridRetention(RetentionConfig(keepLast = 5, keepWithinDays = 30))
+        val policy = HybridRetention { RetentionConfig(keepLast = 5, keepWithinDays = 30) }
         val result = policy.classify(emptyList(), now)
         assertEquals(0, result.keep.size)
         assertEquals(0, result.prune.size)
@@ -26,7 +26,7 @@ class HybridRetentionTest {
 
     @Test
     fun `fewer entries than keepLast and all within age window keeps everything`() {
-        val policy = HybridRetention(RetentionConfig(keepLast = 10, keepWithinDays = 30))
+        val policy = HybridRetention { RetentionConfig(keepLast = 10, keepWithinDays = 30) }
         val entries = (0 until 3).map { entry(now.minus(Duration.ofDays(it.toLong()))) }
 
         val result = policy.classify(entries, now)
@@ -39,7 +39,7 @@ class HybridRetentionTest {
     @Test
     fun `keepLast wins when no entries fall in age window`() {
         // 4 backups all older than 5 days; keepLast=3 → keep 3 newest.
-        val policy = HybridRetention(RetentionConfig(keepLast = 3, keepWithinDays = 5))
+        val policy = HybridRetention { RetentionConfig(keepLast = 3, keepWithinDays = 5) }
         val entries = (10 until 14).map { entry(now.minus(Duration.ofDays(it.toLong()))) }
 
         val result = policy.classify(entries, now)
@@ -53,7 +53,7 @@ class HybridRetentionTest {
     @Test
     fun `keepWithinDays wins when many entries are within age window`() {
         // 10 entries spread over 9 days; keepLast=3, keepWithinDays=10 → age wins
-        val policy = HybridRetention(RetentionConfig(keepLast = 3, keepWithinDays = 10))
+        val policy = HybridRetention { RetentionConfig(keepLast = 3, keepWithinDays = 10) }
         val entries = (0 until 10).map { entry(now.minus(Duration.ofDays(it.toLong()))) }
 
         val result = policy.classify(entries, now)
@@ -67,7 +67,7 @@ class HybridRetentionTest {
         // age-based: 6 entries (days 0..5)
         // count-based: 2 entries (days 0..1)
         // hybrid: take age (6 > 2)
-        val policy = HybridRetention(RetentionConfig(keepLast = 2, keepWithinDays = 5))
+        val policy = HybridRetention { RetentionConfig(keepLast = 2, keepWithinDays = 5) }
         val entries = (0 until 10).map { entry(now.minus(Duration.ofDays(it.toLong()))) }
 
         val result = policy.classify(entries, now)
@@ -79,7 +79,7 @@ class HybridRetentionTest {
 
     @Test
     fun `pinned backup older than age window is preserved`() {
-        val policy = HybridRetention(RetentionConfig(keepLast = 2, keepWithinDays = 5))
+        val policy = HybridRetention { RetentionConfig(keepLast = 2, keepWithinDays = 5) }
         val entries = listOf(
             entry(now.minus(Duration.ofDays(100)), name = "release-v1"),  // ancient pinned
             entry(now),
@@ -100,7 +100,7 @@ class HybridRetentionTest {
     @Test
     fun `pinned backup beyond keepLast count is preserved`() {
         // keepLast=2 with 5 entries — but 1 is pinned. Pinned never counts.
-        val policy = HybridRetention(RetentionConfig(keepLast = 2, keepWithinDays = 0))
+        val policy = HybridRetention { RetentionConfig(keepLast = 2, keepWithinDays = 0) }
         val entries = listOf(
             entry(now.minus(Duration.ofDays(0))),
             entry(now.minus(Duration.ofDays(1))),
@@ -120,7 +120,7 @@ class HybridRetentionTest {
     fun `pinned backups do not consume keepLast quota`() {
         // keepLast=3 with 4 unpinned + 1 pinned. Quota should apply to unpinned only,
         // so we keep 3 unpinned + 1 pinned = 4 total, prune 1 unpinned.
-        val policy = HybridRetention(RetentionConfig(keepLast = 3, keepWithinDays = 0))
+        val policy = HybridRetention { RetentionConfig(keepLast = 3, keepWithinDays = 0) }
         val entries = listOf(
             entry(now.minus(Duration.ofDays(0))),
             entry(now.minus(Duration.ofDays(1))),
@@ -137,7 +137,7 @@ class HybridRetentionTest {
 
     @Test
     fun `all pinned backups are kept regardless of size`() {
-        val policy = HybridRetention(RetentionConfig(keepLast = 1, keepWithinDays = 1))
+        val policy = HybridRetention { RetentionConfig(keepLast = 1, keepWithinDays = 1) }
         val entries = (0 until 20).map {
             entry(now.minus(Duration.ofDays((it * 30).toLong())), name = "pinned-$it")
         }
@@ -152,7 +152,7 @@ class HybridRetentionTest {
     @Test
     fun `unsorted input is classified correctly`() {
         // Input deliberately shuffled — impl must sort internally.
-        val policy = HybridRetention(RetentionConfig(keepLast = 2, keepWithinDays = 0))
+        val policy = HybridRetention { RetentionConfig(keepLast = 2, keepWithinDays = 0) }
         val entries = listOf(
             entry(now.minus(Duration.ofDays(5))),
             entry(now),
@@ -173,7 +173,7 @@ class HybridRetentionTest {
         // Off-by-one trap: an entry timestamped exactly `now - keepWithinDays`
         // is on the boundary. Specify inclusive — operator says "keep 5 days"
         // and intuitively expects the 5-day-old backup to be kept.
-        val policy = HybridRetention(RetentionConfig(keepLast = 1, keepWithinDays = 5))
+        val policy = HybridRetention { RetentionConfig(keepLast = 1, keepWithinDays = 5) }
         val cutoff = now.minus(Duration.ofDays(5))
         val entries = listOf(
             entry(cutoff),  // exactly at boundary
@@ -188,13 +188,38 @@ class HybridRetentionTest {
     @Test
     fun `keep plus prune equals input`() {
         // Sanity: every entry must be classified, never lost.
-        val policy = HybridRetention(RetentionConfig(keepLast = 3, keepWithinDays = 7))
+        val policy = HybridRetention { RetentionConfig(keepLast = 3, keepWithinDays = 7) }
         val entries = (0 until 20).map { entry(now.minus(Duration.ofDays(it.toLong()))) }
 
         val result = policy.classify(entries, now)
         val combined = (result.keep + result.prune).map { it.metadata.timestamp }.toSet()
         val expected = entries.map { it.metadata.timestamp }.toSet()
         assertEquals(expected, combined)
+    }
+
+    // ---- Live config (regression) ----
+
+    @Test
+    fun `policy reflects live config changes between classify calls`() {
+        // Regression for the stale-retention bug: the orchestrator builds ONE
+        // policy at startup, so a runtime `/vault retention` edit must be visible
+        // on the next classify. A snapshotting policy keeps pruning with the old
+        // (looser) values and the backups folder grows until the disk fills.
+        var cfg = RetentionConfig(keepLast = 10, keepWithinDays = 30)
+        val policy = HybridRetention { cfg }
+        val entries = (0 until 6).map { entry(now.minus(Duration.ofDays(it.toLong()))) }
+
+        // Initially generous → keep everything.
+        val before = policy.classify(entries, now)
+        assertEquals(6, before.keep.size)
+        assertEquals(0, before.prune.size)
+
+        // Operator tightens retention at runtime.
+        cfg = RetentionConfig(keepLast = 2, keepWithinDays = 0)
+
+        val after = policy.classify(entries, now)
+        assertEquals(2, after.keep.size, "tightened config must take effect on the same policy instance")
+        assertEquals(4, after.prune.size)
     }
 
     // ---- Helper ----
