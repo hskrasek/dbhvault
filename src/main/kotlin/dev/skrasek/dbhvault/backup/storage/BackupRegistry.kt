@@ -32,7 +32,14 @@ class BackupRegistry(private val backupDir: Path) {
                 .filter { Files.isRegularFile(it) }
                 .map { path ->
                     val meta = BackupMetadata.parse(path.name) ?: return@map null
-                    BackupEntry(path, meta, path.fileSize())
+                    // The file can vanish between the directory listing and the
+                    // size read (concurrent prune, operator cleanup) — skip it.
+                    val size = try {
+                        path.fileSize()
+                    } catch (e: java.io.IOException) {
+                        return@map null
+                    }
+                    BackupEntry(path, meta, size)
                 }
                 .filter { it != null }
                 .map { it!! }

@@ -13,7 +13,7 @@ class IdleTrackerTest {
     private val now = Instant.parse("2026-05-09T12:00:00Z")
     private val cfg = IdleSkipConfig(enabled = true, afterIdleHours = 24)
 
-    // ---- playerCountChanged behavior ----
+    // ---- recordActivity behavior ----
 
     @Test
     fun `constructor seeds lastPlayerActivity with the initial value`() {
@@ -23,37 +23,23 @@ class IdleTrackerTest {
     }
 
     @Test
-    fun `playerCountChanged with non-zero count advances lastPlayerActivity to now`() {
+    fun `recordActivity advances lastPlayerActivity to now`() {
         val tracker = IdleTracker(initialActivity = now.minus(Duration.ofDays(7)))
-        tracker.playerCountChanged(playerCount = 3, now = now)
+        tracker.recordActivity(now)
         assertEquals(now, tracker.lastPlayerActivity)
     }
 
     @Test
-    fun `playerCountChanged with zero count freezes lastPlayerActivity`() {
-        val frozenAt = now.minus(Duration.ofMinutes(5))
-        val tracker = IdleTracker(initialActivity = frozenAt)
-        tracker.playerCountChanged(playerCount = 0, now = now)
-        assertEquals(
-            frozenAt,
-            tracker.lastPlayerActivity,
-            "zero players must not advance the activity timestamp",
-        )
-    }
-
-    @Test
-    fun `transitions online to offline to online track correctly`() {
+    fun `disconnect updates activity to the disconnect moment not the join moment`() {
+        // A player joins, plays for 10 hours, and leaves. Activity must reflect
+        // the END of the session — otherwise a mid-session backup "satisfies"
+        // the dirty check and the session tail is never captured.
+        val joinAt = now.minus(Duration.ofHours(10))
         val tracker = IdleTracker(initialActivity = now.minus(Duration.ofDays(30)))
 
-        tracker.playerCountChanged(1, now.minus(Duration.ofMinutes(10)))
-        assertEquals(now.minus(Duration.ofMinutes(10)), tracker.lastPlayerActivity)
-
-        tracker.playerCountChanged(0, now.minus(Duration.ofMinutes(5)))
-        // Frozen at the previous online moment, NOT the disconnect moment.
-        assertEquals(now.minus(Duration.ofMinutes(10)), tracker.lastPlayerActivity)
-
-        tracker.playerCountChanged(2, now.minus(Duration.ofMinutes(1)))
-        assertEquals(now.minus(Duration.ofMinutes(1)), tracker.lastPlayerActivity)
+        tracker.recordActivity(joinAt) // join
+        tracker.recordActivity(now) // disconnect
+        assertEquals(now, tracker.lastPlayerActivity)
     }
 
     // ---- shouldSkipScheduled: disabled ----
@@ -62,7 +48,6 @@ class IdleTrackerTest {
     fun `disabled config never skips`() {
         val disabled = IdleSkipConfig(enabled = false, afterIdleHours = 1)
         val tracker = IdleTracker(initialActivity = now.minus(Duration.ofDays(30)))
-        tracker.playerCountChanged(0, now.minus(Duration.ofDays(30)))
 
         assertFalse(
             tracker.shouldSkipScheduled(disabled, lastBackup = now.minus(Duration.ofDays(1)), now = now),
@@ -73,20 +58,19 @@ class IdleTrackerTest {
     // ---- shouldSkipScheduled: not idle long enough ----
 
     @Test
-    fun `online player means not skipped`() {
+    fun `recent activity means not skipped`() {
         val tracker = IdleTracker(initialActivity = now.minus(Duration.ofDays(7)))
-        tracker.playerCountChanged(1, now)
+        tracker.recordActivity(now)
 
         assertFalse(
             tracker.shouldSkipScheduled(cfg, lastBackup = now.minus(Duration.ofDays(7)), now = now),
-            "with a player online, lastPlayerActivity == now, so idle duration is zero",
+            "with activity at now, idle duration is zero",
         )
     }
 
     @Test
     fun `idle for less than threshold is not skipped`() {
         val tracker = IdleTracker(initialActivity = now.minus(Duration.ofHours(5)))
-        tracker.playerCountChanged(0, now.minus(Duration.ofHours(5)))
 
         assertFalse(
             tracker.shouldSkipScheduled(cfg, lastBackup = now.minus(Duration.ofHours(2)), now = now),
@@ -101,7 +85,6 @@ class IdleTrackerTest {
         // World became idle 2 days ago, but no backup has ever been taken since
         // — we MUST take one to capture the post-activity state.
         val tracker = IdleTracker(initialActivity = now.minus(Duration.ofDays(2)))
-        tracker.playerCountChanged(0, now.minus(Duration.ofDays(2)))
 
         assertFalse(
             tracker.shouldSkipScheduled(cfg, lastBackup = null, now = now),
@@ -115,7 +98,6 @@ class IdleTrackerTest {
         // Nothing new to capture — skip.
         val activityEnded = now.minus(Duration.ofDays(2))
         val tracker = IdleTracker(initialActivity = activityEnded)
-        tracker.playerCountChanged(0, activityEnded)
         val lastBackup = now.minus(Duration.ofDays(1))
 
         assertTrue(
@@ -131,11 +113,28 @@ class IdleTrackerTest {
         val backupTakenAt = now.minus(Duration.ofDays(7))
         val activityEnded = now.minus(Duration.ofDays(2))
         val tracker = IdleTracker(initialActivity = activityEnded)
-        tracker.playerCountChanged(0, activityEnded)
 
         assertFalse(
             tracker.shouldSkipScheduled(cfg, lastBackup = backupTakenAt, now = now),
             "backup pre-dates last activity → world is dirty → must capture",
+        )
+    }
+
+    @Test
+    fun `backup mid-session does not satisfy the dirty check once the session end is recorded`() {
+        // Regression for the session-tail data-loss bug: join at T0, backup at
+        // T0+6h, player leaves at T0+10h. The disconnect must move activity to
+        // T0+10h so the mid-session backup no longer post-dates activity.
+        val joinAt = now.minus(Duration.ofHours(40))
+        val midSessionBackup = now.minus(Duration.ofHours(34))
+        val leaveAt = now.minus(Duration.ofHours(30))
+
+        val tracker = IdleTracker(initialActivity = joinAt)
+        tracker.recordActivity(leaveAt) // disconnect edge
+
+        assertFalse(
+            tracker.shouldSkipScheduled(cfg, lastBackup = midSessionBackup, now = now),
+            "mid-session backup pre-dates the recorded session end → world dirty → must capture",
         )
     }
 
@@ -145,7 +144,6 @@ class IdleTrackerTest {
         // backup must be STRICTLY after activity to count as having captured it.
         val sameInstant = now.minus(Duration.ofDays(2))
         val tracker = IdleTracker(initialActivity = sameInstant)
-        tracker.playerCountChanged(0, sameInstant)
 
         assertFalse(
             tracker.shouldSkipScheduled(cfg, lastBackup = sameInstant, now = now),
@@ -161,7 +159,6 @@ class IdleTrackerTest {
         // for skip (assuming the lastBackup condition is met).
         val activityEnded = now.minus(Duration.ofHours(24))
         val tracker = IdleTracker(initialActivity = activityEnded)
-        tracker.playerCountChanged(0, activityEnded)
         val lastBackup = now.minus(Duration.ofHours(12))
 
         assertTrue(

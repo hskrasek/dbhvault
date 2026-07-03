@@ -5,6 +5,7 @@ import dev.skrasek.dbhvault.backup.storage.BackupEntry
 import dev.skrasek.dbhvault.backup.storage.BackupRegistry
 import dev.skrasek.dbhvault.backup.storage.RetentionPolicy
 import dev.skrasek.dbhvault.config.Config
+import dev.skrasek.dbhvault.observability.Telemetry
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.time.Clock
@@ -63,30 +64,37 @@ class BackupOrchestrator(
 
         backupDir.toFile().mkdirs()
 
-        return try {
+        val sizeBytes = try {
             val token = freeze()
             try {
-                val sizeBytes = archiver.archive(worldDir, destFile, config.compression.level)
-                val finished = clock.instant()
-                val all = registry.list()
-                val decision = retention.classify(all, finished)
-
-                prune(decision.prune)
-
-                BackupResult.Success(
-                    file = destFile,
-                    sizeBytes = sizeBytes,
-                    timestamp = started,
-                    duration = Duration.between(started, finished),
-                    pinned = pinned,
-                )
+                archiver.archive(worldDir, destFile, config.compression.level)
             } finally {
                 runCatching { token.close() }.onFailure { logger.error("thaw failed", it) }
             }
         } catch (t: Throwable) {
             logger.error("Backup failed", t)
             runCatching { destFile.toFile().delete() }
-            BackupResult.Failed(t)
+            val failed = BackupResult.Failed(t)
+            Telemetry.captureBackupFailure(failed)
+            return failed
         }
+
+        val finished = clock.instant()
+
+        // Retention runs only after the archive is safely on disk. A retention
+        // failure is logged but must never delete or fail the backup that just
+        // succeeded — that's the delete-on-failure path above, which is scoped
+        // to the archiving step alone.
+        runCatching {
+            prune(retention.classify(registry.list(), finished).prune)
+        }.onFailure { logger.error("Retention prune failed; backup kept", it) }
+
+        return BackupResult.Success(
+            file = destFile,
+            sizeBytes = sizeBytes,
+            timestamp = started,
+            duration = Duration.between(started, finished),
+            pinned = pinned,
+        )
     }
 }

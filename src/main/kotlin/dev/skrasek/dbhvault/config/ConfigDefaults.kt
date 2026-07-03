@@ -2,7 +2,7 @@ package dev.skrasek.dbhvault.config
 
 internal const val DEFAULT_CONFIG_TOML = """# DBHVault configuration.
 # Edit values here, or use /vault commands at runtime.
-# Comments survive command-driven edits because tomlkt preserves them.
+# NOTE: /vault commands rewrite this file and do not preserve comments.
 
 backupDirectory = "./backups"
 

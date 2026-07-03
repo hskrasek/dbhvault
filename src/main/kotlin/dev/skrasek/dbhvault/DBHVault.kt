@@ -30,6 +30,7 @@ import java.nio.file.Paths
 import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 object DBHVault : DedicatedServerModInitializer {
@@ -63,17 +64,14 @@ object DBHVault : DedicatedServerModInitializer {
             Telemetry.shutdown()
         }
 
-        ServerPlayConnectionEvents.JOIN.register { _, _, server ->
-            runtimeRef.get()?.idleTracker?.playerCountChanged(
-                server.playerList.players.size,
-                Instant.now(),
-            )
+        // Both events prove a player was online right now — record activity
+        // unconditionally. The exact remaining player count doesn't matter;
+        // "is anyone online" is read live from the player list at skip time.
+        ServerPlayConnectionEvents.JOIN.register { _, _, _ ->
+            runtimeRef.get()?.idleTracker?.recordActivity(Instant.now())
         }
-        ServerPlayConnectionEvents.DISCONNECT.register { _, server ->
-            // The disconnecting player is still in the list while this fires —
-            // subtract one to reflect the post-disconnect player count.
-            val remaining = (server.playerList.players.size - 1).coerceAtLeast(0)
-            runtimeRef.get()?.idleTracker?.playerCountChanged(remaining, Instant.now())
+        ServerPlayConnectionEvents.DISCONNECT.register { _, _ ->
+            runtimeRef.get()?.idleTracker?.recordActivity(Instant.now())
         }
     }
 
@@ -83,7 +81,20 @@ object DBHVault : DedicatedServerModInitializer {
         Telemetry.refreshConfigContext(cfg)
 
         val worldDir = server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize()
-        val backupDir = Paths.get(cfg.backupDirectory).toAbsolutePath().normalize()
+        val requestedBackupDir = Paths.get(cfg.backupDirectory).toAbsolutePath().normalize()
+        // A backup dir inside the world dir would make every archive try to
+        // include its own growing output file — guaranteed corruption.
+        val backupDir = if (requestedBackupDir.startsWith(worldDir)) {
+            logger.error(
+                "backupDirectory {} is inside the world directory {} — backups would recursively " +
+                    "archive themselves. Falling back to ./backups; fix backupDirectory in dbhvault.toml.",
+                requestedBackupDir,
+                worldDir,
+            )
+            Paths.get("backups").toAbsolutePath().normalize()
+        } else {
+            requestedBackupDir
+        }
         Files.createDirectories(backupDir)
 
         val archiverFactory = ArchiverFactory()
@@ -112,8 +123,18 @@ object DBHVault : DedicatedServerModInitializer {
                 CoroutineExceptionHandler { _, t -> Telemetry.captureException(t) },
         )
 
+        // The orchestrator must see the *effective* format, not the requested
+        // one — otherwise a zstd-unavailable host writes zip bytes into a file
+        // named .tar.zst (and metadata parses the wrong format at restore time).
+        val effectiveCfg =
+            if (effectiveFormat != cfg.compression.format) {
+                cfg.copy(compression = cfg.compression.copy(format = effectiveFormat))
+            } else {
+                cfg
+            }
+
         val orchestrator = BackupOrchestrator(
-            config = cfg,
+            config = effectiveCfg,
             worldDir = worldDir,
             backupDir = backupDir,
             archiver = archiver,
@@ -124,18 +145,27 @@ object DBHVault : DedicatedServerModInitializer {
                 val token = runOnServerThread(server) { WorldFlush.freeze(server) }
                 AutoCloseable { token.thaw() }
             },
-            prune = { entries -> entries.forEach { runCatching { it.path.toFile().delete() } } },
+            prune = { entries ->
+                entries.forEach { entry ->
+                    runCatching { Files.deleteIfExists(entry.path) }
+                        .onFailure { logger.warn("Failed to prune backup {}", entry.path, it) }
+                }
+            },
         )
 
         val scheduler = BackupScheduler(
             scheduleConfig = cfg.schedule,
             shouldSkipIdle = {
                 val current = runtimeRef.get()?.config()?.schedule?.idleSkip ?: cfg.schedule.idleSkip
-                idleTracker.shouldSkipScheduled(
-                    current,
-                    registry.mostRecent()?.metadata?.timestamp,
-                    Instant.now(),
-                )
+                // The tracker only sees join/disconnect edges — a player who has
+                // been online for days produces no events. Anyone online now
+                // means the world is live: never skip.
+                server.playerList.players.isEmpty() &&
+                    idleTracker.shouldSkipScheduled(
+                        current,
+                        registry.mostRecent()?.metadata?.timestamp,
+                        Instant.now(),
+                    )
             },
             runBackup = { req ->
                 val result = orchestrator.runIfFree(req)
@@ -185,10 +215,9 @@ object DBHVault : DedicatedServerModInitializer {
                 .append(Messages.size(result.sizeBytes))
                 .append(Component.literal(" in ${result.duration.toSeconds()}s)"))
         is BackupResult.Skipped -> Component.literal("Scheduled backup skipped: ${result.reason}")
-        is BackupResult.Failed -> {
-            Telemetry.captureBackupFailure(result)
-            Component.literal("Scheduled backup failed: ${result.cause.message}")
-        }
+        // Failure telemetry is captured by the orchestrator itself, so manual
+        // and scheduled failures both reach Sentry.
+        is BackupResult.Failed -> Component.literal("Scheduled backup failed: ${result.cause.message}")
     }
 
     /**
@@ -210,6 +239,9 @@ object DBHVault : DedicatedServerModInitializer {
                 future.completeExceptionally(t)
             }
         }
-        return future.get()
+        // Bounded wait: if the server thread stops draining tasks (shutdown
+        // race), fail the backup instead of parking an IO thread forever.
+        // 10 minutes comfortably covers a saveAll flush on a huge world.
+        return future.get(10, TimeUnit.MINUTES)
     }
 }

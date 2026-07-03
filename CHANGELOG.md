@@ -5,6 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] — 2026-07-02
+
+### Fixed
+
+- **Idle-skip could permanently skip backups while the world was still
+  changing.** Player activity was only recorded on *join*, so a long or AFK
+  session froze the activity timestamp at session start; a mid-session backup
+  then "satisfied" the world-dirty check and every later scheduled backup was
+  skipped — losing the tail of the session. Activity is now recorded on both
+  join and disconnect, and the scheduler never skips while anyone is online.
+- **Tar archives could be silently corrupted by files changing size
+  mid-archive.** `noSave` does not block player-data/stats/advancements
+  saves, so a file rewritten between the tar header and the content copy
+  misaligned every subsequent entry. Entries now copy exactly the byte count
+  promised in the header (truncating growth, zero-padding shrinkage).
+- **A retention failure deleted the backup that had just succeeded.**
+  Retention/prune ran inside the same `try` whose failure path deletes the
+  partial archive. Retention now runs after the archive is safely on disk;
+  its failures are logged and the backup is kept.
+- **zstd-unavailable hosts wrote zip data into `.tar.zst` files.** The
+  archive-format fallback changed the archiver but not the filename. The
+  orchestrator now names files by the *effective* format.
+- **`/vault schedule pause` let one more backup fire.** The scheduler acted
+  on a config snapshot taken before its interval delay; the enabled flag is
+  now re-read at tick time.
+- **Out-of-range values in a hand-edited `dbhvault.toml` are clamped** to the
+  same ranges the `/vault` commands enforce. Previously `intervalHours = 0`
+  busy-spun the scheduler, a negative `keepLast` crashed retention after
+  every successful archive, and a zstd level above 22 failed every backup.
+- **`/vault config reload` on a malformed file silently replaced it with
+  defaults** (and stripped comments). The reload now fails with a chat error
+  and leaves the running config and the file untouched.
+- USTAR entry-name limit is measured in bytes, not chars — multibyte UTF-8
+  names near the 100-byte limit were silently truncated instead of rejected.
+- A `backupDirectory` inside the world directory (which would recursively
+  archive its own output) is detected at startup and falls back to
+  `./backups` with an error log.
+- Manual backup failures now reach Sentry (previously only scheduled ones).
+- Prune deletions that fail are logged instead of silently ignored, and
+  backup listing no longer breaks if a file vanishes mid-scan.
+
+## [1.2.0] — 2026-06-22
+
+### Added
+
+- Minecraft 26.2 support — built against 26.2 with a `>=26.1 <26.3`
+  compatibility range, so one jar loads on both 26.1 and 26.2.
+
+### Fixed
+
+- Runtime `/vault retention` edits now propagate to the pruner without a
+  restart (retention config is resolved per-backup instead of snapshotted at
+  startup).
+- Backup sizes in chat are humanized and bolded; the mod name renders green.
+
 ## [1.1.2] — 2026-05-10
 
 ### Fixed

@@ -289,6 +289,26 @@ class BackupOrchestratorTest {
     }
 
     @Test
+    fun `retention failure keeps the archive and still returns Success`() {
+        // Regression: retention used to run inside the same try whose catch
+        // deleted destFile — a retention bug deleted every good backup right
+        // after it was created.
+        val backupDir = tempDir("orch-retention-fail-")
+        val throwingRetention = mockk<RetentionPolicy> {
+            every { classify(any(), any()) } throws RuntimeException("retention bug")
+        }
+        val orchestrator = newOrchestrator(retention = throwingRetention, backupDir = backupDir)
+
+        val result = orchestrator.runIfFree(BackupRequest.Manual("x"))
+
+        assertTrue(result is BackupResult.Success, "retention failure must not fail the backup; got $result")
+        assertTrue(
+            Files.exists((result as BackupResult.Success).file),
+            "the archive must survive a retention failure",
+        )
+    }
+
+    @Test
     fun `failed backup does not invoke prune`() {
         // Defensive: if the archive failed, we should not run retention against
         // the registry, since the registry's view is unchanged from before.

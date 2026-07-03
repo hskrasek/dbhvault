@@ -15,9 +15,19 @@ internal object ConfigSubcommand {
                 .then(
                     Commands.literal("reload")
                         .executes { ctx ->
-                            val next = runtime.configManager.loadOrCreate()
-                            runtime.applyConfig(next, "Config reloaded from disk", ctx.source)
-                            1
+                            // tryLoad, not loadOrCreate: a malformed file must fail
+                            // the reload, not get silently replaced with defaults
+                            // (applyConfig saves, which would clobber the file).
+                            val next = runtime.configManager.tryLoad()
+                            if (next == null) {
+                                ctx.source.sendFailure(
+                                    Component.literal("Config file failed to parse — see server log. Running config unchanged.")
+                                )
+                                0
+                            } else {
+                                runtime.applyConfig(next, "Config reloaded from disk", ctx.source)
+                                1
+                            }
                         }
                 )
                 .then(

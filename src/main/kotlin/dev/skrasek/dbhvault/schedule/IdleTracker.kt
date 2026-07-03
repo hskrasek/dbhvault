@@ -6,10 +6,20 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Tracks the most recent moment a player was on the server. Thread-safe via
- * [AtomicReference] (Fabric callbacks for player join/disconnect can fire
- * from the network thread, while [shouldSkipScheduled] is read from the
- * scheduler coroutine).
+ * Tracks the most recent moment a player was known to be on the server.
+ * Thread-safe via [AtomicReference] (Fabric callbacks for player
+ * join/disconnect can fire from the network thread, while
+ * [shouldSkipScheduled] is read from the scheduler coroutine).
+ *
+ * [recordActivity] is called on BOTH join and disconnect — either event
+ * proves a player was online at that instant. (Join-only tracking was the
+ * old behavior; it froze activity at session *start*, so a mid-session
+ * backup "satisfied" the dirty check below and the tail of a long session
+ * could be skipped forever.)
+ *
+ * This tracker is edge-triggered: a player who stays online for days
+ * produces no events, so callers must ALSO check the live player list —
+ * players currently online means not idle, regardless of what this says.
  *
  * [shouldSkipScheduled] returns true only when ALL of:
  *   1. `config.enabled` is true
@@ -25,10 +35,9 @@ class IdleTracker(initialActivity: Instant) {
 
     val lastPlayerActivity: Instant get() = lastActivity.get()
 
-    fun playerCountChanged(playerCount: Int, now: Instant): Unit {
-        if (playerCount > 0) {
-            lastActivity.set(now)
-        }
+    /** Record that a player was present at [now]. */
+    fun recordActivity(now: Instant) {
+        lastActivity.set(now)
     }
 
     fun shouldSkipScheduled(
@@ -38,7 +47,7 @@ class IdleTracker(initialActivity: Instant) {
     ): Boolean {
         if (!config.enabled) return false
 
-        val activity = lastActivity.get() ?: return false
+        val activity = lastActivity.get()
         val idleFor = Duration.between(activity, now)
 
         if (idleFor < Duration.ofHours(config.afterIdleHours.toLong())) return false

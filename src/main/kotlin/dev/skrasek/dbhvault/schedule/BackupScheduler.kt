@@ -23,7 +23,8 @@ import java.util.concurrent.atomic.AtomicReference
  *
  * [updateConfig] swaps the config atomically, but the currently-pending `delay`
  * is NOT shortened — the new interval takes effect on the iteration after the
- * current one completes.
+ * current one completes. The `enabled` flag IS re-read after the delay, so a
+ * pause issued mid-interval suppresses the very next tick.
  *
  * [start] when already running cancels the previous job (no double-firing).
  */
@@ -39,10 +40,12 @@ class BackupScheduler(
     fun start(scope: CoroutineScope): Unit {
         val newJob = scope.launch {
             while (isActive) {
-                val cfg = scheduleConfig
-                val intervalMs = Duration.ofHours(cfg.intervalHours.toLong()).toMillis()
+                val intervalMs = Duration.ofHours(scheduleConfig.intervalHours.toLong()).toMillis()
                 delay(intervalMs)
 
+                // Re-read after the delay: a `/vault schedule pause` issued
+                // mid-interval must take effect at this tick, not one tick later.
+                val cfg = scheduleConfig
                 if (!cfg.enabled) {
                     logger.debug("Schedule disabled; tick ignored")
                     continue

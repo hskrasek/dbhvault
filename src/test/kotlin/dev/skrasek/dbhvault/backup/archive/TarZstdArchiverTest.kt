@@ -196,6 +196,34 @@ class TarZstdArchiverTest {
         }
     }
 
+    @Test
+    fun `throws when filename exceeds 100 BYTES even if under 100 chars`() {
+        // The USTAR name field is 100 bytes; multibyte UTF-8 names must be
+        // measured in bytes, not chars, or they'd be silently truncated.
+        val src = tempDir("tarzst-multibyte-src-")
+        val name = "é".repeat(60) + ".txt" // 64 chars, 124 bytes
+        Files.writeString(src.resolve(name), "data")
+
+        val dest = tempDir("tarzst-multibyte-dest-").resolve("out.tar.zst")
+        assertThrows<Exception> {
+            TarZstdArchiver().archive(src, dest, level = 3)
+        }
+    }
+
+    @Test
+    fun `out-of-range compression level is clamped instead of failing`() {
+        val src = tempDir("tarzst-level-src-")
+        Files.writeString(src.resolve("a.txt"), "data")
+
+        val destDir = tempDir("tarzst-level-dest-")
+        // Neither call may throw; both archives must round-trip.
+        TarZstdArchiver().archive(src, destDir.resolve("low.tar.zst"), level = -5)
+        TarZstdArchiver().archive(src, destDir.resolve("high.tar.zst"), level = 99)
+
+        assertEquals(1, readTarZst(destDir.resolve("low.tar.zst")).size)
+        assertEquals(1, readTarZst(destDir.resolve("high.tar.zst")).size)
+    }
+
     // ---- Unhappy paths ----
 
     @Test

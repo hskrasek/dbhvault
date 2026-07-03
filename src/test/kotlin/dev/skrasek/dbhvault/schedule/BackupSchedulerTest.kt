@@ -152,6 +152,30 @@ class BackupSchedulerTest {
         scheduler.stop()
     }
 
+    @Test
+    fun `pause via updateConfig mid-delay suppresses the very next tick`() = runTest {
+        // Regression: the tick used to act on a config snapshot taken BEFORE
+        // the delay, so a pause issued mid-interval let one more backup fire.
+        val count = AtomicInteger()
+        val scheduler = BackupScheduler(
+            scheduleConfig = enabledHourlyConfig(intervalHours = 1),
+            shouldSkipIdle = { false },
+            runBackup = {
+                count.incrementAndGet()
+                BackupResult.Skipped(BackupResult.SkipReason.SCHEDULE_DISABLED)
+            },
+        )
+
+        scheduler.start(this)
+        advanceTimeBy(Duration.ofMinutes(30).toMillis())
+        scheduler.updateConfig(enabledHourlyConfig(intervalHours = 1).copy(enabled = false))
+        advanceTimeBy(Duration.ofHours(2).toMillis())
+        runCurrent()
+        scheduler.stop()
+
+        assertEquals(0, count.get(), "pause issued mid-delay must suppress the next tick")
+    }
+
     // ---- Lifecycle ----
 
     @Test
