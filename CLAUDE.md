@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**DBHVault** — a server-only Fabric mod for Minecraft 26.1–26.2, written in Kotlin. Provides world backups for the Dashboarders Heaven server. Built against 26.2; the jar declares a `>=26.1 <26.3` compatibility range so one artifact loads on both.
+**DBHVault** — a server-only Fabric mod for Minecraft 26.1–26.3, written in Kotlin. Provides world backups for the Dashboarders Heaven server. Built against 26.3; the jar declares a `>=26.1 <26.4` compatibility range so one artifact loads on all three.
 
 ## Repository
 

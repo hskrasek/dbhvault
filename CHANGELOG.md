@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] — 2026-10-04
+
+### Added
+
+- Minecraft 26.3 support — built against 26.3 (Loader 0.19.5, Fabric API
+  0.161.0+26.3) with a `>=26.1 <26.4` compatibility range, so one jar loads
+  on 26.1 through 26.3.
+
 ## [1.2.1] — 2026-07-02
 
 ### Fixed
